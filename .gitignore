@@ -1,0 +1,7 @@
+app/__pycache__
+
+nginx/ssl/certs/*
+
+nginx/ssl/private/*
+
+nginx/logs/
