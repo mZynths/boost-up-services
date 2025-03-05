@@ -46,7 +46,7 @@ def create_access_token(data: dict, expires_delta: timedelta):
     encoded = jwt.encode(to_encode, SECRET_KEY, algorithm = ALGORITHM)
     return encoded
 
-def get_usuario(db: db_dependency, email: str):
+def get_usuario(db: db_dependency, email: str): # type: ignore
     usuario = db.query(Usuario).filter(Usuario.email == email).first()
     
     if usuario is not None:
@@ -56,7 +56,7 @@ def get_usuario(db: db_dependency, email: str):
     #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario not found")
     # return usuario
         
-def authenticate_usuario(db: db_dependency, username: str, password: str):
+def authenticate_usuario(db: db_dependency, username: str, password: str): # type: ignore
     usuario = get_usuario(db, email=username)
     
     if not usuario or not pwd_context.verify(password, usuario.password):
@@ -64,7 +64,7 @@ def authenticate_usuario(db: db_dependency, username: str, password: str):
     
     return usuario
     
-def get_current_usuario(db: db_dependency, token: Annotated[str, Depends(oauth2_scheme)]):
+def get_current_usuario(db: db_dependency, token: Annotated[str, Depends(oauth2_scheme)]): # type: ignore
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
@@ -87,7 +87,7 @@ def get_current_usuario(db: db_dependency, token: Annotated[str, Depends(oauth2_
 usuario_router = APIRouter(prefix="/usuario", tags=["usuario"])
 
 @usuario_router.post('/token/', response_model=UsuarioToken, tags=["usuario"])
-async def get_user_token(db: db_dependency, form_data: OAuth2PasswordRequestForm = Depends()):
+async def get_user_token(db: db_dependency, form_data: OAuth2PasswordRequestForm = Depends()): # type: ignore
     usuario = authenticate_usuario(db, form_data.username, form_data.password)
     
     if not usuario:
