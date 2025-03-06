@@ -5,12 +5,15 @@ from sqlalchemy import (
     Date,
     Enum,
     Integer,
-    Float
+    Float,
+    DateTime
 )
 
-# Response models from py to db
+from sqlalchemy.dialects.mysql import (
+    TINYINT, 
+    SMALLINT
+)
 
-from sqlalchemy.dialects.mysql import TINYINT, SMALLINT
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -45,17 +48,38 @@ class Usuario(Base):
         index=True
     )
     
-    Medida = relationship('Medida')
-    Cantidad = relationship('Cantidad')
+    medidas_rel = relationship('Medidas')
+    cantidades_rel = relationship('Cantidades')
+    
+    @property
+    def peso_kg(self):
+        return self.medidas_rel.peso_kg if self.medidas_rel else None
+    
+    @property
+    def talla_cm(self):
+        return self.medidas_rel.talla_cm if self.medidas_rel else None
+    
+    @property
+    def cintura_cm(self):
+        return self.medidas_rel.cintura_cm if self.medidas_rel else None
+    
+    @property
+    def cadera_cm(self):
+        return self.medidas_rel.cadera_cm if self.medidas_rel else None
+    
+    @property
+    def circ_brazo_cm(self):
+        return self.medidas_rel.circ_brazo_cm if self.medidas_rel else None
+    
 
-class Cantidad(Base):
+class Cantidades(Base):
     __tablename__ = 'Cantidades'
 
     id_cantidades = Column(Integer, primary_key=True)
     proteina_gr = Column(TINYINT, nullable=False)
     curcuma_gr = Column(TINYINT, nullable=False)
 
-class Medida(Base):
+class Medidas(Base):
     __tablename__ = 'Medidas'
 
     id_medidas = Column(Integer, primary_key=True)
@@ -219,3 +243,59 @@ class AlergenoProteina(Base):
     @property
     def tipo_alergeno(self):
         return self.alergeno_rel.id_tipo_alergeno if self.alergeno_rel else None
+
+class AlergenoUsuario(Base):
+    __tablename__ = 'Alergia_Usuario'
+    
+    id_alergia = Column(Integer, primary_key=True)
+    usuario_email = Column(
+        ForeignKey(
+            'Usuario.email'
+        ),
+        index = True,
+        name = 'usuario'
+    )
+    
+    tipo_alergeno_id = Column(
+        ForeignKey(
+            'Tipo_Alergeno.id_tipo_alergeno',
+        ),
+        index=True,
+        name = 'tipo_alergeno'
+    )
+    
+    usuario_rel = relationship('Usuario', foreign_keys=[usuario_email])
+    alergeno_rel = relationship('Alergeno', foreign_keys=[tipo_alergeno_id])
+    
+    @property
+    def email(self):
+        return self.usuario_rel.email if self.usuario_rel else None
+    
+    @property
+    def alergeno(self):
+        return self.alergeno_rel.alergeno if self.alergeno_rel else None
+    
+    @property
+    def tipo_alergeno(self):
+        return self.alergeno_rel.id_tipo_alergeno if self.alergeno_rel else None
+
+# class Pedido(Base):
+#     __tablename__ = 'Pedido'
+    
+#     id_pedido = Column(String())
+
+class Compra(Base):
+    __tablename__ = 'Compra'
+    
+    id_compra = Column(Integer, primary_key=True)
+    
+    pedido_id = Column(
+        ForeignKey(
+            'Pedido.id_pedido',
+        ),
+        index=True,
+        name = 'pedido'
+    )
+    
+    monto_total = Column(Float)
+    fec_hora_compra = Column(DateTime)

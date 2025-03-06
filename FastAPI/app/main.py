@@ -107,12 +107,12 @@ async def get_user_token(db: db_dependency, form_data: OAuth2PasswordRequestForm
         "token_type": "bearer"
     }
 
-# Get current authentified user
+# Get current authentified Usuario
 @usuario_router.get("/yo/", response_model=UsuarioResponse, tags=["usuario"])
 async def get_my_user(current_usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)]):
     return current_usuario
 
-# Register user account
+# Register Usuario account
 @usuario_router.post("/registrar/", response_model=UsuarioResponse, status_code=status.HTTP_201_CREATED)
 def create_user(user: UsuarioCreate, db: Session = Depends(get_db)):
 
@@ -148,11 +148,78 @@ def create_user(user: UsuarioCreate, db: Session = Depends(get_db)):
         edad = calculate_age(user.fec_nacimiento)
     )
     
+    # me da miedo que la gente tenga acceso a esto tan facil    
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    
+
     return db_user
+
+# Get Usuario medidas and age
+@usuario_router.get("/medidas/", response_model=UsuarioMedidasResponse)
+def get_my_medidas(usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)], db: Session = Depends(get_db)):
+    
+    db_result = db.query(Usuario).options(
+        joinedload(Usuario.medidas_rel)
+    ).filter(Usuario.email == usuario.email).first()
+    
+    return db_result
+
+# Create Usuario Medidas
+@usuario_router.post("/medidas/", response_model=MedidasResponse)
+def create_medidas(medidas: MedidasCreate, db: Session = Depends(get_db)):
+    
+    calculated_imc = medidas.peso_kg/((medidas.talla_cm/100)**2)
+    
+    db_medidas = Medidas(
+        imc = calculated_imc,
+        peso_kg = medidas.peso_kg,
+        talla_cm = medidas.talla_cm,
+        cintura_cm = medidas.cintura_cm,
+        cadera_cm = medidas.cadera_cm,
+        circ_brazo_cm = medidas.circ_brazo_cm,
+        fec_actualizacion = date.today()
+    )
+    
+    db.add(db_medidas)
+    db.commit()
+    db.refresh(db_medidas)
+    
+    return db_medidas
+
+# Get Usuario alergenos
+@usuario_router.get("/alergenos/", response_model=list[UsuarioAlergenoResponse])
+def get_user_allergens(usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)], db: Session = Depends(get_db)):
+    
+    db_result = db.query(AlergenoUsuario).options(
+        joinedload(AlergenoUsuario.alergeno_rel),
+    ).filter(AlergenoUsuario.usuario_email == usuario.email).all()
+    
+    if not db_result:
+        raise HTTPException(
+            status_code = 404,
+            detail=f"No allergens found for user {usuario.email}"
+        )
+    
+    return db_result
+
+# Add Alergeno to Usuario
+@usuario_router.post("/alergenos/", response_model=list[UsuarioAlergenoResponse])
+def add_user_allergens(alergeno: UsuarioAlergenoCreate, usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)], db: Session = Depends(get_db)):
+    db_user_allergen = AlergenoUsuario(
+        usuario_email = usuario.email,
+        tipo_alergeno_id = alergeno.tipo_alergeno
+    )
+    
+    db.add(db_user_allergen)
+    db.commit()
+    db.refresh(db_user_allergen)
+    
+    db_result = db.query(AlergenoUsuario).options(
+        joinedload(AlergenoUsuario.alergeno_rel),
+    ).filter(AlergenoUsuario.usuario_email == usuario.email).all()
+    
+    return db_result
 
 # Get all Alergenos 
 @internal_router.get("/alergenos/", response_model=list[AlergenoResponse])

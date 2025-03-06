@@ -55,6 +55,46 @@ class UsuarioCreate(BaseModel):
             raise ValueError("Birth date cannot be in the future")
         return value
 
+class UsuarioMedidasResponse(BaseModel):
+    peso_kg: int
+    talla_cm: int
+    cintura_cm: int
+    cadera_cm: int
+    circ_brazo_cm: int
+    edad: int
+    
+    class Config:
+        from_attributes = True
+
+class MedidasResponse(BaseModel):
+    id_medidas: int
+    imc: float
+    peso_kg: int
+    talla_cm: int
+    cintura_cm: int
+    cadera_cm: int
+    circ_brazo_cm: int
+    fec_actualizacion: date
+
+    class Config:
+        from_attributes = True
+
+class MedidasCreate(BaseModel):
+    # id_medidas: int
+    # imc: float
+    peso_kg: int
+    talla_cm: int
+    cintura_cm: int
+    cadera_cm: int
+    circ_brazo_cm: int
+    # fec_actualizacion: date
+    
+    @validator('talla_cm')
+    def validate_talla(cls, value):
+        if value <= 0:
+            raise ValueError("Talla must be a positive nonzero integer")
+        return value
+    
 class AlergenoResponse(BaseModel):
     id_tipo_alergeno: int
     alergeno: str
@@ -105,3 +145,13 @@ class AlergenoProteinaResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+class UsuarioAlergenoResponse(BaseModel):
+    alergeno: str
+    tipo_alergeno: int
+    
+    class Config:
+        from_attributes = True
+
+class UsuarioAlergenoCreate(BaseModel):
+    tipo_alergeno: int
