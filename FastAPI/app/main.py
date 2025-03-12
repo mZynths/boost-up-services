@@ -112,6 +112,9 @@ async def get_user_token(db: db_dependency, form_data: OAuth2PasswordRequestForm
 async def get_my_user(current_usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)]):
     return current_usuario
 
+def calculateIMC(peso, talla):
+    return peso/((talla/100)**2)
+    
 # Register Usuario account
 @usuario_router.post("/registrar/", response_model=UsuarioResponse, status_code=status.HTTP_201_CREATED)
 def create_user(user: UsuarioCreate, db: Session = Depends(get_db)):
@@ -135,6 +138,7 @@ def create_user(user: UsuarioCreate, db: Session = Depends(get_db)):
         return age
     
     hashed_pass = pwd_context.hash(user.password)
+    calculated_IMC = calculateIMC(user.peso_kg, user.talla_cm)
     
     db_user = Usuario(
         email = user.email,
@@ -148,7 +152,30 @@ def create_user(user: UsuarioCreate, db: Session = Depends(get_db)):
         edad = calculate_age(user.fec_nacimiento)
     )
     
-    # me da miedo que la gente tenga acceso a esto tan facil    
+    db_medidas = Medidas(
+        imc = calculated_IMC,
+        peso_kg = user.peso_kg,
+        talla_cm = user.talla_cm,
+        cintura_cm = user.cintura_cm,
+        cadera_cm = user.cadera_cm,
+        circ_brazo_cm = user.circ_brazo_cm,
+        fec_actualizacion = date.today()
+    )
+    
+    db_cantidades = Cantidades(
+        proteina_gr = (calculated_IMC/30)*22,
+        curcuma_gr = (calculated_IMC/30)*10
+    )
+    
+    db.add(db_cantidades)
+    db.add(db_medidas)
+    db.commit()
+    db.refresh(db_cantidades)
+    db.refresh(db_medidas)
+    
+    db_user.medidas = db_medidas.id_medidas
+    db_user.cantidades = db_cantidades.id_cantidades
+    
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -164,28 +191,6 @@ def get_my_medidas(usuario: Annotated[UsuarioResponse, Depends(get_current_usuar
     ).filter(Usuario.email == usuario.email).first()
     
     return db_result
-
-# Create Usuario Medidas
-@usuario_router.post("/medidas/", response_model=MedidasResponse)
-def create_medidas(medidas: MedidasCreate, db: Session = Depends(get_db)):
-    
-    calculated_imc = medidas.peso_kg/((medidas.talla_cm/100)**2)
-    
-    db_medidas = Medidas(
-        imc = calculated_imc,
-        peso_kg = medidas.peso_kg,
-        talla_cm = medidas.talla_cm,
-        cintura_cm = medidas.cintura_cm,
-        cadera_cm = medidas.cadera_cm,
-        circ_brazo_cm = medidas.circ_brazo_cm,
-        fec_actualizacion = date.today()
-    )
-    
-    db.add(db_medidas)
-    db.commit()
-    db.refresh(db_medidas)
-    
-    return db_medidas
 
 # Get Usuario alergenos
 @usuario_router.get("/alergenos/", response_model=list[UsuarioAlergenoResponse])
