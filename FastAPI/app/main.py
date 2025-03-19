@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException, Depends, status, APIRouter
+from fastapi import FastAPI, HTTPException, Depends, status, APIRouter, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, joinedload
 from typing import Annotated
 from database import Sessionlocal
@@ -9,6 +10,10 @@ from datetime import datetime, timedelta, date
 from pytz import timezone
 from jose import JWTError, jwt
 import os
+
+from hashlib import sha256
+import stripe
+import json
 
 from exceptions import *
 from models import *
@@ -29,6 +34,12 @@ def get_db():
         db.close()
         
 db_dependency = Annotated[Session, Depends(get_db)]
+
+# Stripe configurations
+
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+stripe.api_key = STRIPE_SECRET_KEY
+WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
 
 # Security configurations
 SECRET_KEY = os.getenv('JWT_KEY')
@@ -86,6 +97,7 @@ def get_current_usuario(db: db_dependency, token: Annotated[str, Depends(oauth2_
 
 usuario_router = APIRouter(prefix="/usuario", tags=["usuario"])
 
+# User auth
 @usuario_router.post('/token/', response_model=UsuarioToken, tags=["usuario"])
 async def get_user_token(db: db_dependency, form_data: OAuth2PasswordRequestForm = Depends()): # type: ignore
     usuario = authenticate_usuario(db, form_data.username, form_data.password)
@@ -192,6 +204,150 @@ def get_my_medidas(usuario: Annotated[UsuarioResponse, Depends(get_current_usuar
     
     return db_result
 
+# Put an order
+@usuario_router.post("/pedido/")
+def put_order(pedido: PedidoCreate, usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)], db: Session = Depends(get_db)):
+    has_curcuma = pedido.curcuma != -1
+    
+    db_proteina: Proteina = db.query(Proteina).filter(Proteina.id_proteina == pedido.proteina).first()
+    
+    if not db_proteina:
+        raise HTTPException(
+            status_code = 404,
+            detail = f"Proteina with id {pedido.proteina} does not exist"
+        )
+        
+    db_saborizante: Saborizante = db.query(Saborizante).filter(Saborizante.id_saborizante == pedido.saborizante).first()
+    
+    if not db_saborizante:
+        raise HTTPException(
+            status_code = 404,
+            detail = f"Saborizante with id {pedido.saborizante} does not exist"
+        )
+    
+    db_curcuma: Curcuma = db.query(Curcuma).filter(Curcuma.id_curcuma == pedido.curcuma).first()
+    
+    if has_curcuma and not db_curcuma:
+        raise HTTPException(
+            status_code = 404,
+            detail = f"Curcuma with id {pedido.curcuma} does not exist"
+        )
+    
+    db_cantidades: Cantidades = db.query(Cantidades).filter(Cantidades.id_cantidades == usuario.cantidades).first()
+    
+    if not db_cantidades:
+        raise HTTPException(
+            status_code = 404,
+            detail = f"User {usuario.email} does not have cantidades"
+        )
+    
+    proteina_gr = db_cantidades.proteina_gr
+    
+    today = datetime.now(timezone('America/Mexico_City'))
+    
+    prehash = f"{usuario.email}:{pedido.proteina}:{pedido.saborizante}:{proteina_gr}:{today}"
+    
+    id_pedido = sha256(prehash.encode("utf-8")).hexdigest()
+    
+    db_pedido = Pedido(
+        id_pedido = id_pedido,
+        usuario_email = usuario.email,
+        proteina_id = pedido.proteina,
+        saborizante_id = pedido.saborizante,
+        proteina_gr = proteina_gr,
+        estado_canje = "no_canjeado"
+    )
+    
+    precio = db_proteina.precio
+    
+    if has_curcuma:
+        db_pedido.curcuma_gr = db_cantidades.curcuma_gr
+        precio += db_curcuma.precio
+    
+    print(id_pedido)
+
+    precio = precio * 100
+    try:
+        intent = stripe.PaymentIntent.create(
+            amount = int(precio),
+            currency='mxn',
+            metadata={"id_pedido": id_pedido}
+        )
+        
+        db.add(db_pedido)
+        db.commit()
+        db.refresh(db_pedido)
+        
+        return {
+            "id_pedido": id_pedido,
+            "clientSecret": intent['client_secret']
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code = 403,
+            detail = str(e)
+        )
+
+# Stripe WebHook that either aknowledges the order or deletes it
+@app.post("/stripe_webhook/")
+async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+    print(WEBHOOK_SECRET)
+    event = None
+    payload = await request.body()
+    
+    try:
+        event = json.loads(payload)
+        
+    except json.decoder.JSONDecodeError as e:
+        print('⚠️  Webhook error while parsing basic request.' + str(e))
+        return JSONResponse(content={"success": False})
+    
+    sig_header = request.headers.get('stripe-signature')
+    
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, WEBHOOK_SECRET
+        )
+        
+    except stripe.error.SignatureVerificationError as e:
+        print(f'⚠️  Webhook signature verification failed. {str(e)}')
+        return JSONResponse(content={"success": False})
+
+    if event and event['type'] == 'payment_intent.succeeded':
+        payment_intent = event['data']['object']
+        id_pedido = payment_intent["metadata"]["id_pedido"]
+        amount = payment_intent["amount"]
+        
+        print(f'Payment for {payment_intent["metadata"]["id_pedido"]} succeeded')
+        # print(f'Payment for {payment_intent["amount"]} succeeded')
+        
+        db_pedido = db.query(Pedido).filter(Pedido.id_pedido == id_pedido).first()
+        
+        if db_pedido:
+            db_compra = Compra(
+                pedido_id = id_pedido,
+                monto_total = amount/100.0,
+                fec_hora_compra = datetime.now(timezone('America/Mexico_City'))
+            )
+            
+            db.add(db_compra)
+            db.commit()
+            db.refresh(db_compra)
+    
+    elif event and event['type'] == 'payment_intent.canceled':
+        payment_intent = event['data']['object']
+        print(f'Payment for {payment_intent["amount"]} canceled')
+    
+    elif event and event['type'] == 'payment_intent.payment_failed':
+        payment_intent = event['data']['object']
+        print(f'Payment for {payment_intent["amount"]} failed')
+        
+    else:
+        print(f'Unhandled event type {event["type"]}')
+
+    return JSONResponse(content={"success": True})
+    
 # Get Usuario alergenos
 @usuario_router.get("/alergenos/", response_model=list[UsuarioAlergenoResponse])
 def get_user_allergens(usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)], db: Session = Depends(get_db)):

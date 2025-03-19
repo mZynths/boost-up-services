@@ -71,7 +71,6 @@ class Usuario(Base):
     def circ_brazo_cm(self):
         return self.medidas_rel.circ_brazo_cm if self.medidas_rel else None
     
-
 class Cantidades(Base):
     __tablename__ = 'Cantidades'
 
@@ -279,23 +278,70 @@ class AlergenoUsuario(Base):
     def tipo_alergeno(self):
         return self.alergeno_rel.id_tipo_alergeno if self.alergeno_rel else None
 
-# class Pedido(Base):
-#     __tablename__ = 'Pedido'
-    
-#     id_pedido = Column(String())
-
 class Compra(Base):
     __tablename__ = 'Compra'
-    
     id_compra = Column(Integer, primary_key=True)
     
     pedido_id = Column(
         ForeignKey(
-            'Pedido.id_pedido',
+            'Pedido.id_pedido'
         ),
-        index=True,
+        index = True,
         name = 'pedido'
     )
     
-    monto_total = Column(Float)
-    fec_hora_compra = Column(DateTime)
+    monto_total = Column(Float, nullable=False)
+    fec_hora_compra = Column(DateTime, nullable=False)
+
+class Pedido(Base):
+    __tablename__ = 'Pedido'
+    id_pedido = Column(String(), primary_key=True)
+    
+    usuario_email = Column(
+        ForeignKey(
+            'Usuario.email'
+        ),
+        index = True,
+        name = 'usuario'
+    )
+    proteina_id = Column(
+        ForeignKey(
+            'Proteina.id_proteina'
+        ),
+        index = True,
+        name = 'proteina'
+    )
+    curcuma_id = Column(
+        ForeignKey(
+            'Curcuma.id_curcuma'
+        ),
+        index = True,
+        name = 'curcuma'
+    )
+    saborizante_id = Column(
+        ForeignKey(
+            'Saborizante.id_saborizante'
+        ),
+        index = True,
+        name = 'saborizante'
+    )
+    maquina_canje_id = Column(
+        ForeignKey(
+            'Maquina.id_maquina'
+        ),
+        index = True,
+        name = 'maquina_canje',
+        nullable=True
+    )
+    estado_canje = Column(Enum('canjeado', 'no_canjeado'), nullable=False)
+    
+    fec_hora_canje = Column(DateTime, nullable=True)
+    proteina_gr = Column(TINYINT, nullable=False)
+    curcuma_gr = Column(TINYINT, nullable=True)
+
+class Maquina(Base):
+    __tablename__ = 'Maquina'
+    id_maquina = Column(String(), primary_key=True)
+    ubicancion = Column(String(300), nullable=True)
+    
+    

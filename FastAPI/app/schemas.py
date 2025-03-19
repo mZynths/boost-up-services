@@ -147,3 +147,8 @@ class UsuarioAlergenoResponse(BaseModel):
 
 class UsuarioAlergenoCreate(BaseModel):
     tipo_alergeno: int
+
+class PedidoCreate(BaseModel):
+    proteina: int
+    curcuma: int
+    saborizante: int
