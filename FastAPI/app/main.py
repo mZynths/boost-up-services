@@ -206,7 +206,11 @@ def get_my_medidas(usuario: Annotated[UsuarioResponse, Depends(get_current_usuar
 
 # Put an order
 @usuario_router.post("/pedido/")
-def put_order(pedido: PedidoCreate, usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)], db: Session = Depends(get_db)):
+def put_order(
+    pedido: PedidoCreate, 
+    usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)], 
+    db: Session = Depends(get_db)
+):
     has_curcuma = pedido.curcuma != -1
     
     db_proteina: Proteina = db.query(Proteina).filter(Proteina.id_proteina == pedido.proteina).first()
@@ -366,7 +370,11 @@ def get_user_allergens(usuario: Annotated[UsuarioResponse, Depends(get_current_u
 
 # Add Alergeno to Usuario
 @usuario_router.post("/alergenos/", response_model=list[UsuarioAlergenoResponse])
-def add_user_allergens(alergeno: UsuarioAlergenoCreate, usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)], db: Session = Depends(get_db)):
+def add_user_allergens(
+    alergeno: UsuarioAlergenoCreate, 
+    usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)], 
+    db: Session = Depends(get_db)
+):
     db_user_allergen = AlergenoUsuario(
         usuario_email = usuario.email,
         tipo_alergeno_id = alergeno.tipo_alergeno
@@ -434,7 +442,7 @@ def get_curcuma_price(id_curcuma: int, db: Session = Depends(get_db)):
 proteina_router = APIRouter(prefix="/proteina", tags=["proteina"])
 
 # Get opciones de Proteinas
-@proteina_router.get("/opciones/", response_model=list[ProteinaOptionsResponse], tags=["proteina"])
+@proteina_router.get("/opciones/", response_model=list[ProteinaOptionsResponse])
 def get_protein_options(db: Session = Depends(get_db)):
     results = db.query(Proteina).all()
     
@@ -447,7 +455,7 @@ def get_protein_options(db: Session = Depends(get_db)):
     return results
 
 # Get Precio of Proteina by id
-@proteina_router.get("/{id_proteina}/precio/", response_model=ProteinaPrecioResponse, tags=["proteina"])
+@proteina_router.get("/{id_proteina}/precio/", response_model=ProteinaPrecioResponse)
 def get_protein_price(id_proteina: int, db: Session = Depends(get_db)):
     
     db_proteina = db.query(Proteina).filter(
@@ -464,7 +472,7 @@ def get_protein_price(id_proteina: int, db: Session = Depends(get_db)):
     return db_proteina
 
 # Get Alergenos of Proteina by id
-@proteina_router.get("/{id_proteina}/alergenos/", response_model=list[AlergenoProteinaResponse], tags=["proteina"])
+@proteina_router.get("/{id_proteina}/alergenos/", response_model=list[AlergenoProteinaResponse])
 def get_protein_allergens(id_proteina: int, db: Session = Depends(get_db)):
     
     results = db.query(AlergenoProteina).filter(
