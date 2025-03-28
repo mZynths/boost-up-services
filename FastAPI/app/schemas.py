@@ -152,3 +152,29 @@ class PedidoCreate(BaseModel):
     proteina: int
     curcuma: int
     saborizante: int
+
+class PedidoInfoGeneralResponse(BaseModel):
+    id_pedido: str
+    nombre_proteina: str
+    tipo_proteina: str
+    sabor: str
+    fec_hora_compra: datetime
+    
+    class Config:
+        from_attributes = True
+
+class PedidoResponse(BaseModel):
+    proteina: str
+    monto_total: float
+    fec_hora_compra: datetime
+    estado_canje: str
+    proteina_gr: int 
+    curcuma_gr: Optional[int] = None
+    sabor: str
+    tipo_saborizante: str
+    proteina_marca: str
+    curcuma_marca: Optional[str] = None
+    saborizante_marca: str
+    
+    class Config:
+        from_attributes = True

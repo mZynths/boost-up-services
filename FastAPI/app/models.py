@@ -107,16 +107,17 @@ class Proteina(Base):
     fec_actualizacion = Column(Date)
     precio = Column(Float)
         
-    marca = Column(
+    marca_id = Column(
         ForeignKey(
             'Marca.id_marca',
             ondelete='RESTRICT',
             onupdate='RESTRICT'
         ), 
-        index=True
+        index=True,
+        name = "marca"
     )
     
-    Marca = relationship('Marca')
+    marca_rel = relationship('Marca', foreign_keys = [marca_id])
     
 class Marca(Base):
     __tablename__ = 'Marca'
@@ -292,6 +293,8 @@ class Compra(Base):
     
     monto_total = Column(Float, nullable=False)
     fec_hora_compra = Column(DateTime, nullable=False)
+    
+    pedido_rel = relationship('Pedido', foreign_keys = [pedido_id])
 
 class Pedido(Base):
     __tablename__ = 'Pedido'
@@ -316,7 +319,8 @@ class Pedido(Base):
             'Curcuma.id_curcuma'
         ),
         index = True,
-        name = 'curcuma'
+        name = 'curcuma',
+        nullable = True
     )
     saborizante_id = Column(
         ForeignKey(
@@ -338,7 +342,19 @@ class Pedido(Base):
     fec_hora_canje = Column(DateTime, nullable=True)
     proteina_gr = Column(TINYINT, nullable=False)
     curcuma_gr = Column(TINYINT, nullable=True)
-
+    
+    saborizante_rel = relationship('Saborizante', foreign_keys=[saborizante_id])
+    proteina_rel = relationship('Proteina', foreign_keys=[proteina_id])
+    curcuma_rel = relationship('Curcuma', foreign_keys=[curcuma_id])
+    
+    @property
+    def sabor_id(self):
+        return self.saborizante_rel.sabor if self.saborizante_rel else None
+    
+    @property
+    def tipo_proteina(self):
+        return self.proteina_rel.tipo_proteina if self.proteina_rel else None
+    
 class Maquina(Base):
     __tablename__ = 'Maquina'
     id_maquina = Column(String(), primary_key=True)

@@ -205,7 +205,7 @@ def get_my_medidas(usuario: Annotated[UsuarioResponse, Depends(get_current_usuar
     return db_result
 
 # Put an order
-@usuario_router.post("/pedido/")
+@usuario_router.post("/pedir/")
 def put_order(
     pedido: PedidoCreate, 
     usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)], 
@@ -266,6 +266,7 @@ def put_order(
     
     if has_curcuma:
         db_pedido.curcuma_gr = db_cantidades.curcuma_gr
+        db_pedido.curcuma_id = pedido.curcuma
         precio += db_curcuma.precio
     
     print(id_pedido)
@@ -292,6 +293,97 @@ def put_order(
             status_code = 403,
             detail = str(e)
         )
+
+# Get general info of all pedidos
+@usuario_router.get("/pedidos/general/", response_model=list[PedidoInfoGeneralResponse])
+def get_general_info_pedidos(
+    usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)],
+    db: Session = Depends(get_db)
+):
+    # SELECT Sabor.sabor, Proteina.nombre, Proteina.tipo_proteina, id_pedido
+    # FROM Pedido
+    # INNER JOIN Saborizante ON Pedido.saborizante = Saborizante.id_saborizante
+    # INNER JOIN Sabor ON Saborizante.sabor = Sabor.id_sabor
+    # INNER JOIN Proteina ON Pedido.proteina = Proteina.id_proteina
+    # WHERE Pedido.usuario = ?;
+    
+    # db_query = db.query(Pedido).filter(
+    #     Pedido.usuario_email == usuario.email
+    # ).options(
+        # joinedload(
+        #     Pedido.saborizante_rel
+        # ).joinedload(Saborizante.sabor_rel),
+        # joinedload(Pedido.proteina_rel)
+    # ).all()
+    
+    compras = db.query(Compra).options(
+        joinedload(Compra.pedido_rel).joinedload(Pedido.saborizante_rel).joinedload(Saborizante.sabor_rel),
+        joinedload(Compra.pedido_rel).joinedload(Pedido.proteina_rel)
+    ).filter(
+        Pedido.usuario_email == usuario.email
+    ).all()
+    
+    response = []    
+    for compra in compras:
+        pedido = compra.pedido_rel
+        sabor = pedido.saborizante_rel.sabor_rel.sabor
+        proteina = pedido.proteina_rel
+        
+        response.append(PedidoInfoGeneralResponse(
+            id_pedido=pedido.id_pedido,
+            sabor=sabor,
+            nombre_proteina=proteina.nombre,
+            tipo_proteina=proteina.tipo_proteina,
+            fec_hora_compra=compra.fec_hora_compra
+        ))
+
+    return response
+
+# Get detalles of pedido by id
+@app.get("/pedido/{pedido_id}/", response_model = PedidoResponse)
+def get_detalles_pedido(pedido_id: str, db: Session = Depends(get_db)):
+    db_compra: Compra = db.query(Compra).options(
+        joinedload(Compra.pedido_rel).joinedload(Pedido.saborizante_rel).joinedload(Saborizante.sabor_rel),
+        joinedload(Compra.pedido_rel).joinedload(Pedido.saborizante_rel).joinedload(Saborizante.tipo_saborizante_rel),
+        joinedload(Compra.pedido_rel).joinedload(Pedido.proteina_rel),
+        joinedload(Compra.pedido_rel).joinedload(Pedido.curcuma_rel),
+        joinedload(Compra.pedido_rel).joinedload(Pedido.saborizante_rel).joinedload(Saborizante.marca_rel),
+        joinedload(Compra.pedido_rel).joinedload(Pedido.proteina_rel).joinedload(Proteina.marca_rel),
+        joinedload(Compra.pedido_rel).joinedload(Pedido.curcuma_rel).joinedload(Curcuma.marca_rel)
+    ).filter(
+        Compra.pedido_id == pedido_id
+    ).first()
+    
+    if not db_compra:
+        raise HTTPException(
+            status_code = 404,
+            detail = "Pedido not found"
+        )
+    
+    
+    db_pedido: Pedido = db_compra.pedido_rel
+    db_proteina: Proteina = db_pedido.proteina_rel
+    db_curcuma: Curcuma = db_pedido.curcuma_rel
+    db_saborizante: Saborizante = db_pedido.saborizante_rel
+    
+    result = PedidoResponse(
+        proteina = db_proteina.nombre,
+        monto_total = db_compra.monto_total,
+        fec_hora_compra = db_compra.fec_hora_compra,
+        estado_canje = db_pedido.estado_canje,
+        proteina_gr = db_pedido.proteina_gr,
+        sabor = db_saborizante.sabor_rel.sabor,
+        tipo_saborizante = db_saborizante.tipo_saborizante_rel.tipo_saborizante,
+        proteina_marca = db_proteina.marca_rel.marca,
+        saborizante_marca = db_saborizante.marca_rel.marca
+    )
+    
+    if db_curcuma:
+        result.curcuma_gr = db_pedido.curcuma_gr
+        result.curcuma_marca = db_curcuma.marca_rel.marca
+        
+    return result
+
 
 # Stripe WebHook that either aknowledges the order or deletes it
 @app.post("/stripe_webhook/")
