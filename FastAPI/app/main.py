@@ -21,9 +21,6 @@ from schemas import *
 
 load_dotenv()
 
-app = FastAPI()
-internal_router = APIRouter()
-
 def get_db():
     db = Sessionlocal()
     
@@ -32,7 +29,11 @@ def get_db():
         
     finally:
         db.close()
-        
+
+app = FastAPI(title = "BoostUp - API Docs")
+
+internal_router = APIRouter()
+
 db_dependency = Annotated[Session, Depends(get_db)]
 
 # Stripe configurations
@@ -47,8 +48,20 @@ pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 ALGORITHM = 'HS256'
 ACCESS_TOKEN_EXPIRE_MINUTES = 60*24 # Whole day
 
-# Defines which is the endpoint for authorization
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/usuario/token/')
+# Authorization definitions
+
+class UserOAuth2PasswordBearer(OAuth2PasswordBearer):
+    pass
+
+class OwnerOAuth2PasswordBearer(OAuth2PasswordBearer):
+    pass
+
+class TechnicianOAuth2PasswordBearer(OAuth2PasswordBearer):
+    pass
+
+oauth2_scheme_user = UserOAuth2PasswordBearer(tokenUrl='/usuario/token/')
+oauth2_scheme_owner = OwnerOAuth2PasswordBearer(tokenUrl='/owner/token/')
+oauth2_scheme_technician = TechnicianOAuth2PasswordBearer(tokenUrl='/technician/token/')
 
 def create_access_token(data: dict, expires_delta: timedelta):
     to_encode = data.copy()
@@ -75,7 +88,7 @@ def authenticate_usuario(db: db_dependency, username: str, password: str): # typ
     
     return usuario
     
-def get_current_usuario(db: db_dependency, token: Annotated[str, Depends(oauth2_scheme)]): # type: ignore
+def get_current_usuario(db: db_dependency, token: Annotated[str, Depends(oauth2_scheme_user)]): # type: ignore
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
@@ -95,8 +108,19 @@ def get_current_usuario(db: db_dependency, token: Annotated[str, Depends(oauth2_
     
     return user
 
-usuario_router = APIRouter(prefix="/usuario", tags=["usuario"])
+# Technician auth
+technician_router = APIRouter(prefix="/technician", tags=["technician"])
+@technician_router.get("/token/")
+async def get_technician_token(token: Annotated[str, Depends(oauth2_scheme_technician)]):
+    return {"token": "technician_token"}
 
+# Owner auth
+owner_router = APIRouter(prefix="/owner", tags=["owner"])
+@owner_router.get("/token/")
+async def get_owner_token(token: Annotated[str, Depends(oauth2_scheme_owner)]):
+    return {"token": "owner_token"}
+
+usuario_router = APIRouter(prefix="/usuario", tags=["usuario"])
 # User auth
 @usuario_router.post('/token/', response_model=UsuarioToken, tags=["usuario"])
 async def get_user_token(db: db_dependency, form_data: OAuth2PasswordRequestForm = Depends()): # type: ignore
@@ -583,4 +607,6 @@ def get_protein_allergens(id_proteina: int, db: Session = Depends(get_db)):
 
 internal_router.include_router(usuario_router)
 internal_router.include_router(proteina_router)
+internal_router.include_router(owner_router)
+internal_router.include_router(technician_router)
 app.include_router(internal_router)
