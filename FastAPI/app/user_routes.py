@@ -257,19 +257,23 @@ def put_order(
         )
 
 # Get general info of all pedidos
-@usuario_router.get("/pedidos/general/", response_model=list[PedidoInfoGeneralResponse])
+@usuario_router.get("/pedidos/general/")#, response_model=list[PedidoInfoGeneralResponse])
 def get_general_info_pedidos(
     usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)],
     db: Session = Depends(get_db)
 ):    
-    compras = db.query(Compra).options(
-        joinedload(Compra.pedido_rel).joinedload(Pedido.saborizante_rel).joinedload(Saborizante.sabor_rel),
-        joinedload(Compra.pedido_rel).joinedload(Pedido.proteina_rel)
-    ).filter(
-        Pedido.usuario_email == usuario.email
-    ).all()
-    
-    response = []    
+    compras = (
+        db.query(Compra)
+        .options(
+            joinedload(Compra.pedido_rel).joinedload(Pedido.saborizante_rel).joinedload(Saborizante.sabor_rel),
+            joinedload(Compra.pedido_rel).joinedload(Pedido.proteina_rel),
+        )
+        .join(Compra.pedido_rel)
+        .filter(Pedido.usuario_email == usuario.email)
+        .all()
+    )
+        
+    response = [] 
     for compra in compras:
         pedido = compra.pedido_rel
         sabor = pedido.saborizante_rel.sabor_rel.sabor

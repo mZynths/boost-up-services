@@ -369,6 +369,10 @@ class Compra(Base):
     fec_hora_compra = Column(DateTime, nullable=False)
     
     pedido_rel = relationship('Pedido', foreign_keys = [pedido_id])
+    
+    @property
+    def usuario_email(self):
+        return self.pedido_rel.usuario_email if self.pedido_rel else None
 
 class Pedido(Base):
     __tablename__ = 'Pedido'
