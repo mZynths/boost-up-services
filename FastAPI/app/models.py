@@ -17,6 +17,46 @@ from sqlalchemy.dialects.mysql import (
 from sqlalchemy.orm import relationship
 from database import Base
 
+class Technician(Base):
+    __tablename__ = 'Tecnico'
+    
+    username = Column(
+        String(100),
+        primary_key=True,
+        name='usuario_tecnico',
+        nullable=False
+    )
+    
+    password = Column(
+        String(64),
+        name='password',
+        nullable=False
+    )
+    
+    machine = Column(
+        Integer,
+        name='maquina',
+        nullable=False
+    )
+    
+    name = Column(
+        String(100),
+        name='nombre',
+        nullable=False
+    )
+    
+    lastname = Column(
+        String(100),
+        name='apellido',
+        nullable=False
+    )
+    
+    email = Column(
+        String(255),
+        name='email',
+        nullable=False
+    )
+
 class Owner(Base):
     __tablename__ = 'Dueno'
     

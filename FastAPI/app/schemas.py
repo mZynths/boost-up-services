@@ -187,3 +187,13 @@ class OwnerResponse(BaseModel):
     
     class Config:
         from_attributes = True
+        
+class TechnicianResponse(BaseModel):
+    username: str
+    email: EmailStr
+    name: str
+    lastname: str
+    machine: int
+    
+    class Config:
+        from_attributes = True

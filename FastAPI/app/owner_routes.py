@@ -11,8 +11,6 @@ from jose import JWTError, jwt
 import os
 
 from hashlib import sha256
-import stripe
-import json
 
 from exceptions import *
 from models import *
@@ -29,14 +27,14 @@ class OwnerOAuth2PasswordBearer(OAuth2PasswordBearer):
 
 oauth2_scheme_owner = OwnerOAuth2PasswordBearer(tokenUrl='/owner/token/')
 
-def get_owner(db: db_dependency, email: str): # type: ignore
-    owner = db.query(Owner).filter(Owner.email == email).first()
+def get_owner(db: db_dependency, username: str): # type: ignore
+    owner = db.query(Owner).filter(Owner.username == username).first()
     
     if owner is not None:
         return owner
 
 def authenticate_owner(db: db_dependency, username: str, password: str): # type: ignore
-    owner = get_owner(db, email=username)
+    owner = get_owner(db, username=username)
     
     if not owner or not pwd_context.verify(password, owner.password):
         return False
@@ -65,7 +63,7 @@ def get_current_owner(db: db_dependency, token: Annotated[str, Depends(oauth2_sc
 
 owner_router = APIRouter(prefix="/owner", tags=["owner"])
 
-@owner_router.get("/token/", response_model=Token)
+@owner_router.post("/token/", response_model=Token)
 async def get_owner_token(db: db_dependency, form_data: OAuth2PasswordRequestForm = Depends()): # type: ignore
     owner = authenticate_owner(db, form_data.username, form_data.password)
 
@@ -87,6 +85,6 @@ async def get_owner_token(db: db_dependency, form_data: OAuth2PasswordRequestFor
     }
 
 # Get current authentified Owner
-@owner_router.get("/yo/", response_model=OwnerResponse, tags=["usuario"])
+@owner_router.get("/yo/", response_model=OwnerResponse)
 async def get_my_owner(current_owner: Annotated[OwnerResponse, Depends(get_current_owner)]):
     return current_owner
