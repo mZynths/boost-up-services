@@ -13,10 +13,6 @@ password = os.getenv('MYSQL_PASSWORD')
 hostname = 'mysql'
 dbname   = os.getenv('MYSQL_DATABASE')
 
-# print(f'username: {username}')
-# print(f'password: {password}')
-# print(f'dbname: {dbname}')
-
 DATABASE_URL = URL.create(
     drivername="mysql+pymysql",
     username=username,
@@ -30,3 +26,12 @@ engine = create_engine(DATABASE_URL, pool_size=10, max_overflow=30)
 Sessionlocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
+
+def get_db():
+    db = Sessionlocal()
+    
+    try:
+        yield db
+        
+    finally:
+        db.close()
