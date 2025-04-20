@@ -6,7 +6,7 @@ from enum import Enum
 from datetime import date, datetime
 
 # Token response model
-class UsuarioToken(BaseModel): # ONLY WORKS WITH MOCK
+class Token(BaseModel): # ONLY WORKS WITH MOCK
     access_token: str
     token_type: str
 
@@ -175,6 +175,15 @@ class PedidoResponse(BaseModel):
     proteina_marca: str
     curcuma_marca: Optional[str] = None
     saborizante_marca: str
+    
+    class Config:
+        from_attributes = True
+        
+class OwnerResponse(BaseModel):
+    username: str
+    name: str
+    lastname: str
+    machine: int
     
     class Config:
         from_attributes = True

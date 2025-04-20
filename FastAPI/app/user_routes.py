@@ -24,13 +24,6 @@ class UserOAuth2PasswordBearer(OAuth2PasswordBearer):
 
 oauth2_scheme_user = UserOAuth2PasswordBearer(tokenUrl='/usuario/token/')
 
-def create_access_token(data: dict, expires_delta: timedelta):
-    to_encode = data.copy()
-    expire_dt = datetime.now(timezone('America/Mexico_City')) + expires_delta
-    to_encode.update({"exp": expire_dt})
-    encoded = jwt.encode(to_encode, SECRET_KEY, algorithm = ALGORITHM)
-    return encoded
-
 def get_usuario(db: db_dependency, email: str): # type: ignore
     usuario = db.query(Usuario).filter(Usuario.email == email).first()
     
@@ -67,7 +60,7 @@ def get_current_usuario(db: db_dependency, token: Annotated[str, Depends(oauth2_
 
 usuario_router = APIRouter(prefix="/usuario", tags=["usuario"])
 # User auth
-@usuario_router.post('/token/', response_model=UsuarioToken, tags=["usuario"])
+@usuario_router.post('/token/', response_model=Token, tags=["usuario"])
 async def get_user_token(db: db_dependency, form_data: OAuth2PasswordRequestForm = Depends()): # type: ignore
     usuario = authenticate_usuario(db, form_data.username, form_data.password)
     

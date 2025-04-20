@@ -18,25 +18,75 @@ from exceptions import *
 from models import *
 from schemas import *
 
+from globalVariables import *
+
 from database import get_db
+
+db_dependency = Annotated[Session, Depends(get_db)]
 
 class OwnerOAuth2PasswordBearer(OAuth2PasswordBearer):
     pass
 
-class TechnicianOAuth2PasswordBearer(OAuth2PasswordBearer):
-    pass
-
 oauth2_scheme_owner = OwnerOAuth2PasswordBearer(tokenUrl='/owner/token/')
-oauth2_scheme_technician = TechnicianOAuth2PasswordBearer(tokenUrl='/technician/token/')
 
-# Technician auth
-technician_router = APIRouter(prefix="/technician", tags=["technician"])
-@technician_router.get("/token/")
-async def get_technician_token(token: Annotated[str, Depends(oauth2_scheme_technician)]):
-    return {"token": "technician_token"}
+def get_owner(db: db_dependency, email: str): # type: ignore
+    owner = db.query(Owner).filter(Owner.email == email).first()
+    
+    if owner is not None:
+        return owner
 
-# Owner auth
+def authenticate_owner(db: db_dependency, username: str, password: str): # type: ignore
+    owner = get_owner(db, email=username)
+    
+    if not owner or not pwd_context.verify(password, owner.password):
+        return False
+    
+    return owner
+
+def get_current_owner(db: db_dependency, token: Annotated[str, Depends(oauth2_scheme_owner)]): # type: ignore
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        
+        if username is None:
+            raise CREDENTIALS_EXCEPTION
+
+        token_data = TokenData(username = username)
+    
+    except JWTError:
+        raise CREDENTIALS_EXCEPTION
+    
+    user = get_owner(db, token_data.username)
+    
+    if user is None:
+        raise CREDENTIALS_EXCEPTION
+    
+    return user
+
 owner_router = APIRouter(prefix="/owner", tags=["owner"])
-@owner_router.get("/token/")
-async def get_owner_token(token: Annotated[str, Depends(oauth2_scheme_owner)]):
-    return {"token": "owner_token"}
+
+@owner_router.get("/token/", response_model=Token)
+async def get_owner_token(db: db_dependency, form_data: OAuth2PasswordRequestForm = Depends()): # type: ignore
+    owner = authenticate_owner(db, form_data.username, form_data.password)
+
+    if not owner:
+        raise CREDENTIALS_EXCEPTION
+    
+    # If later passed, user and pass are correct
+    
+    # Generate JWT
+    token_expires_time = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data = {'sub': form_data.username},
+        expires_delta = token_expires_time
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+
+# Get current authentified Owner
+@owner_router.get("/yo/", response_model=OwnerResponse, tags=["usuario"])
+async def get_my_owner(current_owner: Annotated[OwnerResponse, Depends(get_current_owner)]):
+    return current_owner
