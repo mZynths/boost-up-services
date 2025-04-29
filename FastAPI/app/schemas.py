@@ -110,6 +110,47 @@ class ProteinaOptionsResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class ProteinaDetailsResponse(BaseModel):
+    nombre: str
+    tipo_proteina: TipoProteina
+    precio: float
+    fec_actualizacion: date
+    cont_nutricional: str
+    densidad_proteica: float
+    marca: str
+    
+    class Config:
+        from_attributes = True
+
+class TopProteinaResponse(BaseModel):
+    nombre: str
+    repeticiones: int
+
+    class Config:
+        from_attributes = True
+
+class TopSaborResponse(BaseModel):
+    sabor: str
+    repeticiones: int
+
+    class Config:
+        from_attributes = True
+
+class SaborizanteDetailsResponse(BaseModel):
+    sabor_id: int
+    cont_calorico: int
+    porcion: int
+    marca_id: int
+    id_saborizante: int
+    fec_actualizacion: date
+    tipo_saborizante: str
+    marca: str
+    sabor: str
+    
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
 class SaborizanteOptionsResponse(BaseModel):
     id_saborizante: int
     sabor: str
@@ -121,6 +162,19 @@ class SaborizanteOptionsResponse(BaseModel):
         
 class ProteinaPrecioResponse(BaseModel):
     precio: float
+    
+    class Config:
+        from_attributes = True
+
+class CurcumaDetailsResponse(BaseModel):
+    cont_gingerol: int
+    marca_id: int
+    fec_actualizacion: date
+    cont_curcuminoide: int
+    id_curcuma: int
+    precauciones: str
+    precio: int
+    marca: str
     
     class Config:
         from_attributes = True

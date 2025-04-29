@@ -1,7 +1,8 @@
 from fastapi import HTTPException, Depends, APIRouter, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy import func, desc
 from sqlalchemy.orm import Session, joinedload
-from datetime import datetime
+from datetime import datetime, timedelta
 from pytz import timezone
 
 import json
@@ -119,9 +120,94 @@ def get_detalles_pedido(pedido_id: str, db: Session = Depends(get_db)):
         
     return result
 
+# Get top proteinas
+@misc_router.get("/top-proteinas/", response_model=list[TopProteinaResponse], tags=["Stats"])
+def get_top_proteinas(db: Session = Depends(get_db)):
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    
+    results = (
+        db.query(
+            Proteina.nombre,
+            func.count(Proteina.nombre).label("repeticiones")
+        )
+        .select_from(Compra)
+        .join(Pedido, Compra.pedido_id == Pedido.id_pedido)
+        .join(Proteina, Pedido.proteina_id == Proteina.id_proteina)
+        .filter(Compra.fec_hora_compra >= thirty_days_ago)
+        .group_by(Proteina.nombre)
+        .order_by(desc("repeticiones"))
+        .limit(3)
+        .all()
+    )
+    
+    return [
+        TopProteinaResponse(nombre=nombre, repeticiones=count)
+        for nombre, count in results
+    ]
+
+# Get top sabores
+@misc_router.get("/top-sabores/", response_model=list[TopSaborResponse], tags=["Stats"])
+def get_top_sabores(db: Session = Depends(get_db)):
+    # Calculate the date 30 days ago from now
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    
+    # Execute the query
+    results = (
+        db.query(
+            Sabor.sabor,
+            func.count(Sabor.sabor).label("repeticiones")
+        )
+        .select_from(Compra)
+        .join(Pedido, Compra.pedido_id == Pedido.id_pedido)
+        .join(Saborizante, Pedido.saborizante_id == Saborizante.id_saborizante)
+        .join(Sabor, Saborizante.sabor_id == Sabor.id_sabor)
+        .filter(Compra.fec_hora_compra >= thirty_days_ago)
+        .group_by(Sabor.sabor)
+        .order_by(desc("repeticiones"))
+        .limit(3)
+        .all()
+    )
+    
+    # Format results into the response model
+    return [
+        TopSaborResponse(sabor=sabor, repeticiones=count)
+        for sabor, count in results
+    ]
+
+# Get detalles de Saborizantes by id
+@misc_router.get("/saborizante/{id_saborizante}/detalles", response_model=SaborizanteDetailsResponse, tags=["Saborizante"])
+def get_flavoring_options(id_saborizante: int, db: Session = Depends(get_db)):
+    #
+    results = (
+        db.query(Saborizante).options(
+            joinedload(Saborizante.sabor_rel),             # Load Sabor relationship
+            joinedload(Saborizante.tipo_saborizante_rel),  # Load TipoSaborizante relationship
+            joinedload(Saborizante.marca_rel),  # Load TipoSaborizante relationship
+        ).filter(Saborizante.id_saborizante == id_saborizante).first()
+    )
+    
+    if not results:
+        raise HTTPException(
+            status_code = 404,
+            detail = f'Saborizante with ID {id_saborizante} not found'
+        )
+    
+    response = SaborizanteDetailsResponse(
+        sabor_id = results.sabor_id,
+        cont_calorico = results.cont_calorico,
+        porcion = results.porcion,
+        marca_id = results.marca_id,
+        id_saborizante = results.id_saborizante,
+        fec_actualizacion = results.fec_actualizacion,
+        tipo_saborizante = results.tipo_saborizante_rel.tipo_saborizante,
+        marca = results.marca_rel.marca,
+        sabor = results.sabor_rel.sabor,
+    )
+    
+    return response
 
 # Get opciones de Saborizantes
-@misc_router.get("/saborizante/opciones/", response_model=list[SaborizanteOptionsResponse])
+@misc_router.get("/saborizante/opciones/", response_model=list[SaborizanteOptionsResponse], tags=["Saborizante"])
 def get_flavoring_options(db: Session = Depends(get_db)):
     
     results = db.query(Saborizante).options(
@@ -137,8 +223,71 @@ def get_flavoring_options(db: Session = Depends(get_db)):
     
     return results
 
+# Get Curcuma options
+@misc_router.get("/curcuma/opciones/", response_model=list[CurcumaDetailsResponse], tags=["Curcuma"])
+def get_curcuma_price(db: Session = Depends(get_db)):
+    
+    db_curcuma = db.query(Curcuma).options(
+        joinedload(Curcuma.marca_rel)    
+    ).all()
+    
+    # If not found:
+    if not db_curcuma:
+        raise HTTPException(
+            status_code = 404,
+            detail = f'No curcuma options where found'
+        )
+    
+    response = []
+    
+    for curcuma in db_curcuma:
+        response.append(
+            CurcumaDetailsResponse(
+                cont_gingerol = curcuma.cont_gingerol,
+                marca_id = curcuma.marca_id,
+                fec_actualizacion = curcuma.fec_actualizacion,
+                cont_curcuminoide = curcuma.cont_curcuminoide,
+                id_curcuma = curcuma.id_curcuma,
+                precauciones = curcuma.precauciones,
+                precio = curcuma.precio,
+                marca = curcuma.marca_rel.marca,
+            )
+        )
+    
+    return response
+
+# Get Detalles of Curcuma by id
+@misc_router.get("/curcuma/{id_curcuma}/detalles/", response_model=CurcumaDetailsResponse, tags=["Curcuma"])
+def get_curcuma_price(id_curcuma: int, db: Session = Depends(get_db)):
+    
+    db_curcuma = db.query(Curcuma).options(
+        joinedload(Curcuma.marca_rel)    
+    ).filter(
+        Curcuma.id_curcuma == id_curcuma
+    ).first()
+    
+    # If not found:
+    if not db_curcuma:
+        raise HTTPException(
+            status_code = 404,
+            detail = f'Curcuma with ID {id_curcuma} not found'
+        )
+    
+    response = CurcumaDetailsResponse(
+        cont_gingerol = db_curcuma.cont_gingerol,
+        marca_id = db_curcuma.marca_id,
+        fec_actualizacion = db_curcuma.fec_actualizacion,
+        cont_curcuminoide = db_curcuma.cont_curcuminoide,
+        id_curcuma = db_curcuma.id_curcuma,
+        precauciones = db_curcuma.precauciones,
+        precio = db_curcuma.precio,
+        marca = db_curcuma.marca_rel.marca,
+    )
+    
+    return response
+
 # Get Precio of Curcuma by id
-@misc_router.get("/curcuma/{id_curcuma}/precio/", response_model=CurcumaPrecioResponse)
+@misc_router.get("/curcuma/{id_curcuma}/precio/", response_model=CurcumaPrecioResponse, tags=["Curcuma"])
 def get_curcuma_price(id_curcuma: int, db: Session = Depends(get_db)):
     
     db_curcuma = db.query(Curcuma).filter(
