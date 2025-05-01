@@ -35,6 +35,13 @@ class UsuarioResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class MedidasUpdate(BaseModel):
+    peso_kg: int
+    talla_cm: int
+    cintura_cm: int
+    cadera_cm: int
+    circ_brazo_cm: int
+    
 class UsuarioCreate(BaseModel):
     email: EmailStr
     password: str

@@ -137,6 +137,56 @@ def calculateCantidades(imc, edad, sexo, circ_brazo_cm, cintura_cm, cadera_cm, p
         'proteina_gr': proteinaPura,
         'curcuma_gr': 2,
     }
+    
+# Update Usuario medidas
+@usuario_router.put("/updateMedidas/", status_code=204)
+def updateUserMedidas(medidas: MedidasUpdate, user: Annotated[UsuarioResponse, Depends(get_current_usuario)], db: Session = Depends(get_db)):
+    
+    medidas_obj = db.query(Medidas).filter(Medidas.id_medidas == user.medidas).first()
+    if not medidas_obj:
+        raise HTTPException(status_code=404, detail="Medidas no encontradas")
+    
+    cantidades_obj = db.query(Cantidades).filter(Cantidades.id_cantidades == user.cantidades).first()
+    if not cantidades_obj:
+        raise HTTPException(status_code=404, detail="Cantidades no encontradas")
+
+    calculated_imc = calculateIMC(medidas.peso_kg, medidas.talla_cm)
+    medidas_obj.peso_kg = medidas.peso_kg
+    medidas_obj.talla_cm = medidas.talla_cm
+    medidas_obj.cintura_cm = medidas.cintura_cm
+    medidas_obj.cadera_cm = medidas.cadera_cm
+    medidas_obj.circ_brazo_cm = medidas.circ_brazo_cm
+    medidas_obj.imc = calculated_imc
+    medidas_obj.fec_actualizacion = date.today()
+    
+    db.commit()
+    
+    calculated_age = calculate_age(user.fec_nacimiento)
+    
+    cantidades = calculateCantidades(
+        calculated_imc,
+        calculated_age,
+        user.sexo,
+        medidas.circ_brazo_cm,
+        medidas.cintura_cm,
+        medidas.cadera_cm,
+        medidas.peso_kg
+    )
+    
+    cantidades_obj.proteina_gr = cantidades['proteina_gr']
+    cantidades_obj.curcuma_gr = cantidades['curcuma_gr']
+    
+    db.commit()
+    
+def calculate_age(birth_date: date) -> int:
+    today = date.today()
+    age = today.year - birth_date.year
+    
+    # Check if birthday hasn't occurred yet this year
+    if (today.month, today.day) < (birth_date.month, birth_date.day):
+        age -= 1
+        
+    return age
 
 # Register Usuario account
 @usuario_router.post("/registrar/", response_model=UsuarioResponse, status_code=status.HTTP_201_CREATED)
@@ -149,16 +199,6 @@ def create_user(user: UsuarioCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email already registered")
     
     # Maybe implement the same as above but for Usernames
-    
-    def calculate_age(birth_date: date) -> int:
-        today = date.today()
-        age = today.year - birth_date.year
-        
-        # Check if birthday hasn't occurred yet this year
-        if (today.month, today.day) < (birth_date.month, birth_date.day):
-            age -= 1
-            
-        return age
     
     hashed_pass = pwd_context.hash(user.password)
     calculated_IMC = calculateIMC(user.peso_kg, user.talla_cm)
@@ -220,7 +260,6 @@ def create_user(user: UsuarioCreate, db: Session = Depends(get_db)):
 # Get Usuario medidas and age
 @usuario_router.get("/medidas/", response_model=UsuarioMedidasResponse)
 def get_my_medidas(usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)], db: Session = Depends(get_db)):
-    
     db_result = db.query(Usuario).options(
         joinedload(Usuario.medidas_rel)
     ).filter(Usuario.email == usuario.email).first()
