@@ -35,6 +35,11 @@ class UsuarioResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class UserUpdate(BaseModel):
+    username: str
+    nombre: str
+    apellido: str
+
 class MedidasUpdate(BaseModel):
     peso_kg: int
     talla_cm: int

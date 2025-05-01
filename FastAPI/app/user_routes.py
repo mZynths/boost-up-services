@@ -137,7 +137,39 @@ def calculateCantidades(imc, edad, sexo, circ_brazo_cm, cintura_cm, cadera_cm, p
         'proteina_gr': proteinaPura,
         'curcuma_gr': 2,
     }
-    
+
+@usuario_router.delete("/deleteMe/", status_code=204)
+def deleteCurrentUser(
+    user: Annotated[UsuarioResponse, Depends(get_current_usuario)],
+    db: Session = Depends(get_db)
+):
+
+    # Step 2: Delete related Medidas
+    if user.medidas:
+        medidas = db.query(Medidas).filter(Medidas.id_medidas == user.medidas).first()
+        if medidas:
+            db.delete(medidas)
+
+    # Step 3: Delete related Cantidades
+    if user.cantidades:
+        cantidades = db.query(Cantidades).filter(Cantidades.id_cantidades == user.cantidades).first()
+        if cantidades:
+            db.delete(cantidades)
+
+    # Step 4: Delete the user
+    db.delete(user)
+    db.commit()
+
+# Update Usuario info
+@usuario_router.put("/updateMe/", status_code=204)
+def updateUserInfo(newInfo: UserUpdate, user: Annotated[UsuarioResponse, Depends(get_current_usuario)], db: Session = Depends(get_db)):
+    user.nombre = newInfo.nombre
+    user.apellido = newInfo.apellido
+    user.username = newInfo.username
+
+    # Commit changes
+    db.commit()
+
 # Update Usuario medidas
 @usuario_router.put("/updateMedidas/", status_code=204)
 def updateUserMedidas(medidas: MedidasUpdate, user: Annotated[UsuarioResponse, Depends(get_current_usuario)], db: Session = Depends(get_db)):
