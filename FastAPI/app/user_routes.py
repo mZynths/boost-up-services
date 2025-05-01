@@ -88,7 +88,56 @@ async def get_my_user(current_usuario: Annotated[UsuarioResponse, Depends(get_cu
 
 def calculateIMC(peso, talla):
     return peso/((talla/100)**2)
+
+def calculateCantidades(imc, edad, sexo, circ_brazo_cm, cintura_cm, cadera_cm, peso_kg):     
+    def miniFunc(lower, upper, val):
+        if val < lower: return 'bajo'
+        if lower <= val <= upper: return 'normal'
+        if circ_brazo_cm > upper: return 'alto'
     
+    def getICCRiesgo():
+        ICC = cintura_cm/cadera_cm
+        
+        if sexo == 'Masculino': return miniFunc(0.9, 0.99, ICC)
+        else:                   return miniFunc(0.8, 0.84, ICC)
+    
+    def getCMBLevel():
+        if sexo == 'Masculino':
+            if   18 <= edad <= 24: return miniFunc(26, 30, circ_brazo_cm)
+            elif 25 <= edad <= 34: return miniFunc(26, 31, circ_brazo_cm)
+            elif 35 <= edad <= 44: return miniFunc(25, 30, circ_brazo_cm)
+            elif 45 <= edad <= 54: return miniFunc(25, 29, circ_brazo_cm)
+            elif 55 <= edad <= 64: return miniFunc(24, 28, circ_brazo_cm)
+            elif 65 <= edad:       return miniFunc(23, 27, circ_brazo_cm)
+        else:
+            if   18 <= edad <= 24: return miniFunc(23, 28, circ_brazo_cm)
+            elif 25 <= edad <= 34: return miniFunc(23, 28, circ_brazo_cm)
+            elif 35 <= edad <= 44: return miniFunc(22, 27, circ_brazo_cm)
+            elif 45 <= edad <= 54: return miniFunc(22, 27, circ_brazo_cm)
+            elif 55 <= edad <= 64: return miniFunc(21, 26, circ_brazo_cm)
+            elif 65 <= edad:       return miniFunc(21, 25, circ_brazo_cm)
+
+    ajusteCMB = 0
+    ajusteICC = 0
+    nivelCMB = getCMBLevel()
+    riesgoICC = getICCRiesgo()
+    
+    if   nivelCMB == 'bajo':    ajusteCMB = -0.2
+    elif nivelCMB == 'normal':  ajusteCMB = 0
+    elif nivelCMB == 'alto':    ajusteCMB = 0.2
+    
+    if   riesgoICC == 'bajo':   ajusteICC = 0
+    elif riesgoICC == 'normal': ajusteICC = -0.1
+    elif riesgoICC == 'alto':   ajusteICC = -0.2
+    
+    factorProteico = (2.2 - (imc * 0.05)) + ajusteCMB + ajusteICC
+    proteinaPura = (peso_kg * factorProteico)/3
+    
+    return {
+        'proteina_gr': proteinaPura,
+        'curcuma_gr': 2,
+    }
+
 # Register Usuario account
 @usuario_router.post("/registrar/", response_model=UsuarioResponse, status_code=status.HTTP_201_CREATED)
 def create_user(user: UsuarioCreate, db: Session = Depends(get_db)):
@@ -113,6 +162,7 @@ def create_user(user: UsuarioCreate, db: Session = Depends(get_db)):
     
     hashed_pass = pwd_context.hash(user.password)
     calculated_IMC = calculateIMC(user.peso_kg, user.talla_cm)
+    calculated_age = calculate_age(user.fec_nacimiento)
     
     db_user = Usuario(
         email = user.email,
@@ -123,7 +173,7 @@ def create_user(user: UsuarioCreate, db: Session = Depends(get_db)):
         sexo = user.sexo,
         fec_nacimiento = user.fec_nacimiento,
         fec_registro = date.today(),
-        edad = calculate_age(user.fec_nacimiento)
+        edad = calculated_age
     )
     
     db_medidas = Medidas(
@@ -136,9 +186,20 @@ def create_user(user: UsuarioCreate, db: Session = Depends(get_db)):
         fec_actualizacion = date.today()
     )
     
+    cantidades = calculateCantidades(
+        calculated_IMC,
+        calculated_age,
+        user.sexo,
+        user.circ_brazo_cm,
+        user.cintura_cm,
+        user.cadera_cm,
+        user.peso_kg
+    )
+    
+    # Aqui llamar a la funcion para calcular las cantidades correctas    
     db_cantidades = Cantidades(
-        proteina_gr = (calculated_IMC/30)*22,
-        curcuma_gr = (calculated_IMC/30)*10
+        proteina_gr = cantidades['proteina_gr'],
+        curcuma_gr = cantidades['curcuma_gr']
     )
     
     db.add(db_cantidades)
