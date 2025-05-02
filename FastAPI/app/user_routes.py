@@ -2,9 +2,17 @@ from fastapi import HTTPException, Depends, status, APIRouter
 from sqlalchemy.orm import Session, joinedload
 from typing import Annotated
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.responses import HTMLResponse
 from datetime import datetime, timedelta, date
 from pytz import timezone
 from jose import JWTError, jwt
+
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+import secrets
+import string
 
 from hashlib import sha256
 
@@ -459,3 +467,182 @@ def add_user_allergens(
     
     return db_result
 
+# Send email "Temporary password"
+@usuario_router.put("/updatePassword/", status_code=204)
+def sendResetPasswordEmail(
+    newpass: UpdatePassword, 
+    user: Annotated[UsuarioResponse, Depends(get_current_usuario)],
+    db: Session = Depends(get_db)
+):
+    password = newpass.password
+    hashed_pass = pwd_context.hash(password)
+    
+    user.password = hashed_pass
+        
+    db.commit()
+    
+
+# Send email "Temporary password"
+@usuario_router.get("/resetPassword/{resetToken}")
+def sendResetPasswordEmail(resetToken: str, db: Session = Depends(get_db)):
+    email = verify_password_reset_token(resetToken)
+    
+    user:Usuario = db.query(Usuario).filter(Usuario.email == email).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code = 403,
+            detail = f"El usuario {email} no existe"
+        )
+    
+    tempPass = generate_temp_password()
+    hashed_pass = pwd_context.hash(tempPass)
+    
+    user.password = hashed_pass
+        
+    db.commit()
+    
+    msg = MIMEMultipart()
+    msg['From'] = NOREPLY_EMAIL
+    msg['To'] = email
+    msg['Subject'] = "BoostUp - Petición de restablecer contraseña"
+    
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="UTF-8">
+    <title>Tu contraseña temporal</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px; text-align: center;">
+    <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+        
+        <!-- Logo -->
+        <img src="https://boostup.life/logo.png" alt="Boost up logo" style="max-width: 150px; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto;">
+
+        <h2>Tu contraseña temporal</h2>
+        <p>Hola,</p>
+        <p>Aquí esta tu contraseña temporal. Utilízala para ingresar y cámbiala de volada!</p>
+
+        <!-- Temporary Password -->
+        <p style="font-size: 24px; font-weight: bold; color: #333; margin: 20px 0;">
+        {tempPass}
+        </p>
+
+        <p style="margin-top: 30px; font-size: 12px; color: #666;">
+        Si no solicitaste esto, te recomendamos cambiar tu contraseña lo antes posible. Si tienes dudas, contáctenos.
+        </p>
+    </div>
+    </body>
+    </html>
+    """
+    
+    part = MIMEText(html, 'html')
+    msg.attach(part)
+    
+    try:
+        with smtplib.SMTP_SSL(SMTP_SERVER, 465) as smtp:
+            smtp.login(NOREPLY_EMAIL, NOREPLY_EMAIL_PASSWORD)
+            # Send the email
+            smtp.sendmail(NOREPLY_EMAIL, email, msg.as_string())
+        print("Email sent successfully!")
+        
+        return HTMLResponse("<p>Ya te enviamos tu contraseña temporal, puedes cerrar esta pagina.</p>")
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        return HTMLResponse("<p>Algo salio mal, prueba intentarlo de nuevo en unos minutos.</p>")
+        
+
+def create_password_reset_token(email: str) -> str:
+    token_expires_time = timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)
+    expire_dt = datetime.now(timezone('America/Mexico_City')) + token_expires_time
+    payload = {
+        "sub": email,
+        "exp": expire_dt,
+        "scope": "password_reset"
+    }
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return token
+
+def verify_password_reset_token(token: str) -> str:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("scope") != "password_reset":
+            raise ValueError("Invalid scope for token")
+        return payload.get("sub")  # typically the user's email
+    
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+def generate_temp_password(length: int = 12, use_symbols: bool = True) -> str:
+    characters = string.ascii_letters + string.digits
+    if use_symbols:
+        characters += "!@#$%^&*()-_=+[]{}"
+    
+    return ''.join(secrets.choice(characters) for _ in range(length))
+
+# Send email "Forgot password"
+@usuario_router.post("/forgotPassword/")
+def sendForgotPasswordEmail(email_obj: EmailPost, db: Session = Depends(get_db)):
+    email = email_obj.email
+    
+    user = db.query(Usuario).filter(Usuario.email == email).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code = 403,
+            detail = f"El usuario {email} no existe"
+        )
+    
+    resetToken = create_password_reset_token(email)
+    
+    msg = MIMEMultipart()
+    msg['From'] = NOREPLY_EMAIL
+    msg['To'] = email
+    msg['Subject'] = "BoostUp - Petición de restablecer contraseña"
+    
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="UTF-8">
+    <title>Petición de restablecer contraseña</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px; text-align: center;">
+    <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+        
+        <!-- Logo -->
+        <img src="https://boostup.life/logo.png" alt="Boost up logo" style="max-width: 150px; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto;">
+
+        <h2>¿Extraviaste tu contraseña?</h2>
+        <p>Hola,</p>
+        <p>Me parece que haz solicitado restablecer tu contraseña. Haz clic en el botón de abajo y te enviaremos una contraseña temporal de volada!</p>
+
+        <!-- Button -->
+        <a href="https://boostup.life/usuario/resetPassword/{resetToken}" style="display: inline-block; padding: 12px 24px; background-color: #7a5af8; color: white; text-decoration: none; border-radius: 6px; margin-top: 20px;">
+        Envíame una contraseña temporal
+        </a>
+
+        <p style="margin-top: 30px; font-size: 12px; color: #666;">
+        Si no solicitaste esto, ignora este mensaje. No se ha realizado ningún cambio en tu cuenta.
+        </p>
+    </div>
+    </body>
+    </html>
+    """
+    
+    part = MIMEText(html, 'html')
+    msg.attach(part)
+    
+    try:
+        with smtplib.SMTP_SSL(SMTP_SERVER, 465) as smtp:
+            smtp.login(NOREPLY_EMAIL, NOREPLY_EMAIL_PASSWORD)
+            # Send the email
+            smtp.sendmail(NOREPLY_EMAIL, email, msg.as_string())
+        print("Email sent successfully!")
+        
+    except Exception as e:
+        print(f"Error sending email: {e}")
+    
+    
+    

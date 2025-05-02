@@ -6,6 +6,11 @@ from jose import JWTError, jwt
 
 import stripe
 
+# Email secrets
+SMTP_SERVER = os.getenv('SMTP_SERVER')
+NOREPLY_EMAIL = os.getenv('NOREPLY_EMAIL')
+NOREPLY_EMAIL_PASSWORD = os.getenv('NOREPLY_EMAIL_PASSWORD')
+
 # Stripe configurations
 STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
 WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
@@ -16,6 +21,8 @@ SECRET_KEY = os.getenv('JWT_KEY')
 pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 ALGORITHM = 'HS256'
 ACCESS_TOKEN_EXPIRE_MINUTES = 60*24 # Whole day
+
+RESET_TOKEN_EXPIRE_MINUTES = 30
 
 def create_access_token(data: dict, expires_delta: timedelta):
     to_encode = data.copy()

@@ -19,6 +19,12 @@ class SexoEnum(str, Enum):
     masculino = 'Masculino'
     femenino = 'Femenino'
 
+class EmailPost(BaseModel):
+    email: EmailStr
+    
+class UpdatePassword(BaseModel):
+    password: str
+
 class UsuarioResponse(BaseModel):
     fec_registro: date
     email: EmailStr
