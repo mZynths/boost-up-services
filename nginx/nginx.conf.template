@@ -25,6 +25,17 @@ server {
 
   add_header Strict-Transport-Security "max-age=63072000" always;
 
+  location = /favicon.ico {
+    root /usr/share/nginx/html;
+    default_type image/x-icon;
+    add_header Access-Control-Allow-Origin *;
+  }
+
+  location = /logo.png {
+    root /usr/share/nginx/html;
+    add_header Access-Control-Allow-Origin *;
+  }
+
   location / {
     proxy_pass http://fastapi:80;
     proxy_no_cache 1;

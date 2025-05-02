@@ -49,6 +49,7 @@ services:
       - ./nginx/ssl/certs:/etc/ssl/certs
       - ./nginx/ssl/private:/etc/ssl/private
       - ./nginx/logs:/var/log/nginx
+      - ./nginx/static:/usr/share/nginx/html:ro
     environment:
       SERVER_NAME: ${SERVER_NAME}
     depends_on:
