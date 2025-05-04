@@ -1,8 +1,11 @@
+import asyncio
+
 from fastapi import HTTPException, Depends, status, APIRouter
-from sqlalchemy.orm import Session, joinedload
-from typing import Annotated
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.responses import HTMLResponse
+
+from sqlalchemy.orm import Session, joinedload
+from typing import Annotated
 from datetime import datetime, timedelta, date
 from pytz import timezone
 from jose import JWTError, jwt
@@ -24,7 +27,18 @@ from database import get_db
 
 from globalVariables import *
 
+used_tokens = {}
+
 db_dependency = Annotated[Session, Depends(get_db)]
+
+async def cleanup_task():
+    while True:
+        await asyncio.sleep(300)
+        cutoff = datetime.utcnow() - timedelta(minutes=+1)
+        to_delete = [token for token, ts in used_tokens.items() if ts < cutoff]
+        for token in to_delete:
+            print(f"Deleted: {token}")
+            del used_tokens[token]
 
 # Authorization definitions
 class UserOAuth2PasswordBearer(OAuth2PasswordBearer):
@@ -469,7 +483,7 @@ def add_user_allergens(
 
 # Send email "Temporary password"
 @usuario_router.put("/updatePassword/", status_code=204)
-def sendResetPasswordEmail(
+def update_password(
     newpass: UpdatePassword, 
     user: Annotated[UsuarioResponse, Depends(get_current_usuario)],
     db: Session = Depends(get_db)
@@ -480,12 +494,25 @@ def sendResetPasswordEmail(
     user.password = hashed_pass
         
     db.commit()
-    
 
-# Send email "Temporary password"
-@usuario_router.get("/resetPassword/{resetToken}")
-def sendResetPasswordEmail(resetToken: str, db: Session = Depends(get_db)):
-    email = verify_password_reset_token(resetToken)
+def mark_token_used(token: str):
+    used_tokens[token] = datetime.now(timezone('America/Mexico_City'))
+    
+def is_token_used(token: str) -> bool:
+    return token in used_tokens
+
+# Really confirm the tempPass 
+@usuario_router.post("/confirmResetPassword/")
+def confirmResetPasswordEmail(resetToken: ResetTokenData, db: Session = Depends(get_db)):
+    email = verify_password_reset_token(resetToken.token)
+    
+    if is_token_used(resetToken.token):
+        raise HTTPException(
+            status_code = 403,
+            detail=f"Este token ya fue usado"
+        )
+    
+    mark_token_used(resetToken.token)
     
     user:Usuario = db.query(Usuario).filter(Usuario.email == email).first()
     
@@ -547,11 +574,32 @@ def sendResetPasswordEmail(resetToken: str, db: Session = Depends(get_db)):
             smtp.sendmail(NOREPLY_EMAIL, email, msg.as_string())
         print("Email sent successfully!")
         
-        return HTMLResponse("<p>Ya te enviamos tu contraseña temporal, puedes cerrar esta pagina.</p>")
     except Exception as e:
         print(f"Error sending email: {e}")
-        return HTMLResponse("<p>Algo salio mal, prueba intentarlo de nuevo en unos minutos.</p>")
+
+# Send email "Temporary password"
+@usuario_router.get("/resetPassword/{resetToken}")
+def sendResetPasswordEmail(resetToken: str, db: Session = Depends(get_db)):
         
+    return HTMLResponse(f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+            <script>
+                fetch("/usuario/confirmResetPassword/", {{
+                    method: "POST",
+                    headers: {{ "Content-Type": "application/json" }},
+                    body: JSON.stringify({{ token: "{resetToken}" }})
+                }}).then(() => {{
+                    window.close();
+                }});
+            </script>
+            </head>
+            <body>
+            <p>Ya te enviamos tu contraseña temporal a tu correo, puedes cerrar esta página.</p>
+            </body>
+            </html>
+        """)
 
 def create_password_reset_token(email: str) -> str:
     token_expires_time = timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)

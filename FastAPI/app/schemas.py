@@ -10,6 +10,9 @@ class Token(BaseModel): # ONLY WORKS WITH MOCK
     access_token: str
     token_type: str
 
+class ResetTokenData(BaseModel):
+    token: str
+
 # Data inside token response model
 class TokenData(BaseModel):
     username: str | None = None
