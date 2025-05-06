@@ -86,5 +86,29 @@ async def get_owner_token(db: db_dependency, form_data: OAuth2PasswordRequestFor
 
 # Get current authentified Owner
 @owner_router.get("/yo/", response_model=OwnerResponse)
-async def get_my_owner(current_owner: Annotated[OwnerResponse, Depends(get_current_owner)]):
-    return current_owner
+async def get_my_owner(current_owner: Annotated[OwnerResponse, Depends(get_current_owner)]): return current_owner
+
+# Get inventory Values
+@owner_router.get("/inventario/")
+async def getInventory(owner: Annotated[OwnerResponse, Depends(get_current_owner)], db: Session = Depends(get_db)):
+    machine = db.query(Maquina).filter(Maquina.id_maquina == owner.machine).first()
+    
+    if not machine:
+        raise HTTPException(status_code=404, detail="No se encontro la maquina")
+
+    # Fetch inventory items linked to that machine
+    proteinas = db.query(InvProteina).filter(InvProteina.maquina == machine.id_maquina).all()
+    saborizantes = db.query(InvSaborizante).filter(InvSaborizante.maquina == machine.id_maquina).all()
+    curcumas = db.query(InvCurcuma).filter(InvCurcuma.maquina == machine.id_maquina).all()
+
+    # Convert to dicts (or use Pydantic if needed)
+    def serialize(model_instance):
+        return {column.name: getattr(model_instance, column.name) for column in model_instance.__table__.columns}
+
+    inventory = {
+        "Proteina": [serialize(p) for p in proteinas],
+        "Saborizante": [serialize(s) for s in saborizantes],
+        "Curcuma": [serialize(c) for c in curcumas],
+    }
+
+    return inventory

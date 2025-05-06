@@ -435,7 +435,56 @@ class Pedido(Base):
     
 class Maquina(Base):
     __tablename__ = 'Maquina'
-    id_maquina = Column(String(), primary_key=True)
-    ubicancion = Column(String(300), nullable=True)
+    id_maquina = Column(Integer, primary_key=True, autoincrement=True)
+    ubicacion = Column(String(300), nullable=True)
     
-    
+    inv_curcuma = relationship("InvCurcuma", back_populates="maquina_obj", cascade="all, delete-orphan")
+    inv_proteina = relationship("InvProteina", back_populates="maquina_obj", cascade="all, delete-orphan")
+    inv_saborizante = relationship("InvSaborizante", back_populates="maquina_obj", cascade="all, delete-orphan")
+
+class InvCurcuma(Base):
+    __tablename__ = 'Inv_Curcuma'
+
+    id_inv_curcuma = Column(Integer, primary_key=True, autoincrement=True)
+    curcuma = Column(Integer, ForeignKey("Curcuma.id_curcuma", onupdate="CASCADE"), nullable=False)
+    maquina = Column(Integer, ForeignKey("Maquina.id_maquina", onupdate="CASCADE"), nullable=False)
+    cantidad_gr = Column(Integer, nullable=False)
+    fec_caducidad = Column(Date, nullable=False)
+    fec_ult_abasto = Column(DateTime, nullable=False)
+    fec_prev_abasto = Column(Date, nullable=True)
+    fec_limite_abasto = Column(Date, nullable=True)
+
+    maquina_obj = relationship("Maquina", back_populates="inv_curcuma")
+    curcuma_obj = relationship("Curcuma")
+
+
+class InvProteina(Base):
+    __tablename__ = 'Inv_Proteina'
+
+    id_inv_proteina = Column(Integer, primary_key=True, autoincrement=True)
+    proteina = Column(Integer, ForeignKey("Proteina.id_proteina", onupdate="CASCADE"), nullable=False)
+    maquina = Column(Integer, ForeignKey("Maquina.id_maquina", onupdate="CASCADE"), nullable=False)
+    cantidad_gr = Column(Integer, nullable=False)
+    fec_caducidad = Column(Date, nullable=False)
+    fec_ult_abasto = Column(DateTime, nullable=False)
+    fec_prev_abasto = Column(Date, nullable=True)
+    fec_limite_abasto = Column(Date, nullable=True)
+
+    maquina_obj = relationship("Maquina", back_populates="inv_proteina")
+    proteina_obj = relationship("Proteina")
+
+
+class InvSaborizante(Base):
+    __tablename__ = 'Inv_Saborizante'
+
+    id_inv_sabor = Column(Integer, primary_key=True, autoincrement=True)
+    saborizante = Column(Integer, ForeignKey("Saborizante.id_saborizante", onupdate="CASCADE"), nullable=False)
+    maquina = Column(Integer, ForeignKey("Maquina.id_maquina", onupdate="CASCADE"), nullable=False)
+    cantidad_ml = Column(Integer, nullable=False)
+    fec_caducidad = Column(Date, nullable=False)
+    fec_ult_abasto = Column(DateTime, nullable=False)
+    fec_prev_abasto = Column(Date, nullable=True)
+    fec_limite_abasto = Column(Date, nullable=True)
+
+    maquina_obj = relationship("Maquina", back_populates="inv_saborizante")
+    saborizante_obj = relationship("Saborizante")
