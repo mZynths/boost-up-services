@@ -105,11 +105,9 @@ async def get_user_token(db: db_dependency, form_data: OAuth2PasswordRequestForm
 
 # Get current authentified Usuario
 @usuario_router.get("/yo/", response_model=UsuarioResponse, tags=["usuario"])
-async def get_my_user(current_usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)]):
-    return current_usuario
+async def get_my_user(current_usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)]): return current_usuario
 
-def calculateIMC(peso, talla):
-    return peso/((talla/100)**2)
+def calculateIMC(peso, talla): return peso/((talla/100)**2)
 
 def calculateCantidades(imc, edad, sexo, circ_brazo_cm, cintura_cm, cadera_cm, peso_kg):     
     def miniFunc(lower, upper, val):
@@ -165,7 +163,6 @@ def deleteCurrentUser(
     user: Annotated[UsuarioResponse, Depends(get_current_usuario)],
     db: Session = Depends(get_db)
 ):
-
     # Step 2: Delete related Medidas
     if user.medidas:
         medidas = db.query(Medidas).filter(Medidas.id_medidas == user.medidas).first()
@@ -450,6 +447,8 @@ def get_general_info_pedidos(
             tipo_proteina=proteina.tipo_proteina,
             fec_hora_compra=compra.fec_hora_compra
         ))
+        
+    response = sorted(response, key=lambda x: x.fec_hora_compra, reverse=True)
 
     return response
     
