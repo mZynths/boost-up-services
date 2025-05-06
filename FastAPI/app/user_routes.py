@@ -41,10 +41,10 @@ async def cleanup_task():
             del used_tokens[token]
 
 # Authorization definitions
-class UserOAuth2PasswordBearer(OAuth2PasswordBearer):
+class UserAuth(OAuth2PasswordBearer):
     pass
 
-oauth2_scheme_user = UserOAuth2PasswordBearer(tokenUrl='/usuario/token/')
+oauth2_scheme_user = UserAuth(tokenUrl='/usuario/token/')
 
 def get_usuario(db: db_dependency, email: str): # type: ignore
     usuario = db.query(Usuario).filter(Usuario.email == email).first()

@@ -5,6 +5,13 @@ from typing import Optional
 from enum import Enum
 from datetime import date, datetime
 
+class CurrentTechOrOwner(BaseModel):
+    username: str
+    role: str
+    machine: int | None = None
+    name: str
+    lastname: str
+
 # Token response model
 class Token(BaseModel): # ONLY WORKS WITH MOCK
     access_token: str

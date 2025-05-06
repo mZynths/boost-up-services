@@ -30,3 +30,10 @@ def create_access_token(data: dict, expires_delta: timedelta):
     to_encode.update({"exp": expire_dt})
     encoded = jwt.encode(to_encode, SECRET_KEY, algorithm = ALGORITHM)
     return encoded
+
+def create_access_token_for_user(username: str, role: str, expires_delta: timedelta):
+    data = {
+        "sub": username,
+        "role": role
+    }
+    return create_access_token(data, expires_delta)
