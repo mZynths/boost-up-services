@@ -10,6 +10,13 @@ class Token(BaseModel): # ONLY WORKS WITH MOCK
     access_token: str
     token_type: str
 
+class EmailExistsResponse(BaseModel):
+    exists: bool
+    
+    class Config:
+        from_attributes = True
+
+# Data inside ResetPasswordToken
 class ResetTokenData(BaseModel):
     token: str
 

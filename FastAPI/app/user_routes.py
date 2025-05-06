@@ -192,6 +192,16 @@ def updateUserInfo(newInfo: UserUpdate, user: Annotated[UsuarioResponse, Depends
     # Commit changes
     db.commit()
 
+# Check if user email in db
+@usuario_router.post("/existe/")
+def checkIfUserExists(email: EmailPost, db: Session = Depends(get_db)):
+    user = db.query(Usuario).filter(Usuario.email == email.email).first()
+    
+    if user:
+        return EmailExistsResponse(exists = True)
+    else:
+        return EmailExistsResponse(exists = False)
+    
 # Update Usuario medidas
 @usuario_router.put("/updateMedidas/", status_code=204)
 def updateUserMedidas(medidas: MedidasUpdate, user: Annotated[UsuarioResponse, Depends(get_current_usuario)], db: Session = Depends(get_db)):
