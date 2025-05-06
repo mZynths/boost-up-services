@@ -265,6 +265,8 @@ def create_user(user: UsuarioCreate, db: Session = Depends(get_db)):
     calculated_IMC = calculateIMC(user.peso_kg, user.talla_cm)
     calculated_age = calculate_age(user.fec_nacimiento)
     
+    today = datetime.now(timezone('America/Mexico_City'))
+    
     db_user = Usuario(
         email = user.email,
         password = hashed_pass,
@@ -273,7 +275,7 @@ def create_user(user: UsuarioCreate, db: Session = Depends(get_db)):
         apellido = user.apellido,
         sexo = user.sexo,
         fec_nacimiento = user.fec_nacimiento,
-        fec_registro = date.today(),
+        fec_registro = today,
         edad = calculated_age
     )
     
@@ -284,7 +286,7 @@ def create_user(user: UsuarioCreate, db: Session = Depends(get_db)):
         cintura_cm = user.cintura_cm,
         cadera_cm = user.cadera_cm,
         circ_brazo_cm = user.circ_brazo_cm,
-        fec_actualizacion = date.today()
+        fec_actualizacion = today
     )
     
     cantidades = calculateCantidades(

@@ -286,3 +286,73 @@ class TechnicianResponse(BaseModel):
     
     class Config:
         from_attributes = True
+        
+class RestockProteinaRequest(BaseModel):
+    id_inv_proteina: int
+    proteina: int
+    cantidad_gr: int
+    fec_caducidad: date
+    fec_limite_abasto: Optional[date] = None    # <-- allow null
+
+    class Config:
+        from_attributes = True
+
+
+class InvProteinaResponse(BaseModel):
+    id_inv_proteina: int
+    proteina: int
+    maquina: int
+    cantidad_gr: int
+    fec_caducidad: date
+    fec_ult_abasto: datetime
+    fec_prev_abasto: date | None
+    fec_limite_abasto: date | None
+
+    class Config:
+        from_attributes = True
+
+class RestockCurcumaRequest(BaseModel):
+    id_inv_curcuma: int
+    curcuma: int
+    cantidad_gr: int
+    fec_caducidad: date
+    fec_limite_abasto: Optional[date] = None
+
+    class Config:
+        from_attributes = True
+
+class InvCurcumaResponse(BaseModel):
+    id_inv_curcuma: int
+    curcuma: int
+    maquina: int
+    cantidad_gr: int
+    fec_caducidad: date
+    fec_ult_abasto: datetime
+    fec_prev_abasto: Optional[date]
+    fec_limite_abasto: Optional[date]
+
+    class Config:
+        from_attributes = True
+        
+class RestockSaborizanteRequest(BaseModel):
+    id_inv_sabor: int
+    saborizante: int
+    cantidad_ml: int
+    fec_caducidad: date
+    fec_limite_abasto: Optional[date] = None
+
+    class Config:
+        from_attributes = True
+
+class InvSaborizanteResponse(BaseModel):
+    id_inv_sabor: int
+    saborizante: int
+    maquina: int
+    cantidad_ml: int
+    fec_caducidad: date
+    fec_ult_abasto: datetime
+    fec_prev_abasto: Optional[date]
+    fec_limite_abasto: Optional[date]
+
+    class Config:
+        from_attributes = True

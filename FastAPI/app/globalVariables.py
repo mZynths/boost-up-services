@@ -37,3 +37,8 @@ def create_access_token_for_user(username: str, role: str, expires_delta: timede
         "role": role
     }
     return create_access_token(data, expires_delta)
+
+# Max restock variabbles
+PROTEIN_MAX_RESTOCK = 500
+SABORIZANTE_MAX_RESTOCK = 50
+CURCUMA_MAX_RESTOCK = 100

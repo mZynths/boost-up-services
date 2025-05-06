@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends, status, APIRouter, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, joinedload
-from typing import Annotated, Union
+from typing import Annotated, Union, Type, Any
 from dotenv import load_dotenv
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -150,6 +150,7 @@ def get_current_tech_or_owner(
 owner_router = APIRouter(prefix="/owner", tags=["owner"])
 technician_router = APIRouter(prefix="/technician", tags=["technician"])
 owner_tech_router = APIRouter(prefix="/owner_or_tech", tags=["owner & technician"])
+machine_router = APIRouter(prefix="/machine", tags=["machine"])
 
 @owner_router.post("/token/", response_model=Token)
 async def get_owner_token(db: db_dependency, form_data: OAuth2PasswordRequestForm = Depends()): # type: ignore
@@ -226,3 +227,171 @@ async def getInventory(user: Annotated[CurrentTechOrOwner, Depends(get_current_t
     }
 
     return inventory
+
+def get_machine_for_tech(
+    tech: TechnicianResponse = Depends(get_current_technician),
+    db: Session = Depends(get_db)
+) -> Maquina:
+    machine = db.query(Maquina).get(tech.machine)
+    if not machine:
+        raise HTTPException(404, "No se encontró la máquina")
+    return machine
+
+def get_inventory_or_404(
+    db: Session,
+    model: Type[Any],
+    id_field: str,
+    obj_id: int,
+    machine_id: int
+):
+    filt = {
+        id_field: obj_id,
+        "maquina": machine_id
+    }
+    inv = db.query(model).filter_by(**filt).first()
+    if not inv:
+        raise HTTPException(404, f"No se encontró el inventario ({model.__tablename__})")
+    return inv
+
+def restock_inv(
+    inv: Any,
+    req: BaseModel,
+    *,
+    quantity_field: str,
+    expiration_field: str,
+    now: datetime,
+    prev_date_attr: str = "fec_prev_abasto",
+    last_date_attr: str = "fec_ult_abasto",
+    limit_date_field: str = "fec_limite_abasto",
+):
+    # shift old timestamp → prev
+    old_dt = getattr(inv, last_date_attr)
+    setattr(inv, prev_date_attr, old_dt.date())
+
+    # set new values
+    setattr(inv, quantity_field, getattr(req, quantity_field))
+    setattr(inv, expiration_field, getattr(req, expiration_field))
+    setattr(inv, last_date_attr, now)
+    setattr(inv, limit_date_field, getattr(req, limit_date_field, None))
+
+@technician_router.put("/inventario/proteina/",response_model=InvProteinaResponse)
+async def restock_protein(
+    req: RestockProteinaRequest,
+    machine: Maquina = Depends(get_machine_for_tech),
+    db: Session = Depends(get_db),
+):
+    inv = get_inventory_or_404(db, InvProteina, "id_inv_proteina", req.id_inv_proteina, machine.id_maquina)
+    
+    now = datetime.now(timezone("America/Mexico_City"))
+    restock_inv(
+        inv, req,
+        quantity_field="cantidad_gr",
+        expiration_field="fec_caducidad",
+        now=now
+    )
+
+    db.commit()
+    db.refresh(inv)
+    return inv
+
+@technician_router.put("/inventario/curcuma/", response_model=InvCurcumaResponse)
+async def restock_curcuma(
+    req: RestockCurcumaRequest,
+    machine: Maquina = Depends(get_machine_for_tech),
+    db: Session = Depends(get_db),
+):
+    inv = get_inventory_or_404(db, InvCurcuma, "id_inv_curcuma", req.id_inv_curcuma, machine.id_maquina)
+    now = datetime.now(timezone("America/Mexico_City"))
+    restock_inv(inv, req, quantity_field="cantidad_gr", expiration_field="fec_caducidad", now=now)
+    db.commit()
+    db.refresh(inv)
+    return inv
+
+@technician_router.put("/inventario/saborizante/", response_model=InvSaborizanteResponse)
+async def restock_saborizante(
+    req: RestockSaborizanteRequest,
+    machine: Maquina = Depends(get_machine_for_tech),
+    db: Session = Depends(get_db),
+):
+    inv = get_inventory_or_404(
+        db, InvSaborizante, "id_inv_sabor", req.id_inv_sabor, machine.id_maquina
+    )
+    now = datetime.now(timezone("America/Mexico_City"))
+    restock_inv(
+        inv, req,
+        quantity_field="cantidad_ml",
+        expiration_field="fec_caducidad",
+        now=now
+    )
+    db.commit()
+    db.refresh(inv)
+    return inv
+
+
+
+@machine_router.get(
+    "/inventario/{machine_id}/disponible/{pedido_id}",
+    response_model=bool,
+    summary="¿Hay inventario suficiente en la máquina para preparar un pedido?"
+)
+def check_inventory(
+    machine_id: int,
+    pedido_id: str,
+    db: Session = Depends(get_db),
+):
+    FLAVOR_ML = {
+        1: 15,
+        2: 20,
+        3: 25,
+    }
+    
+    # 1) Cargar el pedido
+    pedido = db.query(Pedido).filter(Pedido.id_pedido == pedido_id).first()
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+
+    # 2) Verificar proteína
+    inv_prot = (
+        db.query(InvProteina)
+          .filter(
+              InvProteina.maquina == machine_id,
+              InvProteina.proteina == pedido.proteina_id
+          )
+          .first()
+    )
+    if not inv_prot or inv_prot.cantidad_gr < pedido.proteina_gr:
+        return False
+
+    # 3) Verificar cúrcuma (si aplica)
+    if pedido.curcuma_id is not None and pedido.curcuma_gr is not None:
+        inv_cur = (
+            db.query(InvCurcuma)
+              .filter(
+                  InvCurcuma.maquina == machine_id,
+                  InvCurcuma.curcuma == pedido.curcuma_id
+              )
+              .first()
+        )
+        if not inv_cur or inv_cur.cantidad_gr < pedido.curcuma_gr:
+            return False
+
+    # 4) Verificar saborizante usando el ml hard‑codeado
+    needed_ml = FLAVOR_ML.get(pedido.saborizante_id)
+    if needed_ml is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Saborizante desconocido: {pedido.saborizante_id}"
+        )
+    inv_sab = (
+        db.query(InvSaborizante)
+          .filter(
+              InvSaborizante.maquina == machine_id,
+              InvSaborizante.saborizante == pedido.saborizante_id
+          )
+          .first()
+    )
+    if not inv_sab or inv_sab.cantidad_ml < needed_ml:
+        return False
+
+    # 5) Si llegamos aquí, ¡hay stock suficiente!
+    return True
