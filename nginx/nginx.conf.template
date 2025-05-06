@@ -36,6 +36,10 @@ server {
     add_header Access-Control-Allow-Origin *;
   }
 
+  location = /.env {
+    return 302 https://www.youtube.com/watch?v=dQw4w9WgXcQ;
+  }
+
   location / {
     proxy_pass http://fastapi:80;
     proxy_no_cache 1;
