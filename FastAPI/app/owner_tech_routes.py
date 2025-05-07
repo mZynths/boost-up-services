@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, status, APIRouter, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy import func, extract, and_
 from sqlalchemy.orm import Session, joinedload
 from typing import Annotated, Union, Type, Any
 from dotenv import load_dotenv
@@ -237,6 +238,15 @@ def get_machine_for_tech(
         raise HTTPException(404, "No se encontró la máquina")
     return machine
 
+def get_machine_for_owner(
+    owner: OwnerResponse = Depends(get_current_owner),
+    db: Session = Depends(get_db)
+) -> Maquina:
+    machine = db.query(Maquina).get(owner.machine)
+    if not machine:
+        raise HTTPException(404, "No se encontró la máquina")
+    return machine
+
 def get_inventory_or_404(
     db: Session,
     model: Type[Any],
@@ -341,6 +351,79 @@ async def maquina_update_nombre(
     db.commit()
         
     return machine
+
+@owner_router.get("/maquina/reporteMensual/{year}/{month}/")
+async def reporteMensual(
+    year: int,
+    month: int,
+    machine: Maquina = Depends(get_machine_for_owner), 
+    db: Session = Depends(get_db)
+):
+    canjes = (
+        db.query(
+            Pedido.saborizante_id,
+            func.count(Pedido.saborizante_id).label("pedidos"),
+            func.sum(Compra.monto_total).label("ganancias"),
+            Sabor.sabor
+        )
+        .select_from(Pedido)
+        .join(Saborizante, Saborizante.id_saborizante == Pedido.saborizante_id)
+        .join(Sabor, Sabor.id_sabor == Saborizante.sabor_id)
+        .join(Compra, Compra.pedido_id == Pedido.id_pedido)
+        .filter(
+            Pedido.maquina_canje_id == machine.id_maquina,
+            Pedido.estado_canje == "canjeado",
+            extract("year", Pedido.fec_hora_canje) == year,
+            extract("month", Pedido.fec_hora_canje) == month
+        )
+        .group_by(Saborizante.id_saborizante)
+        .all()
+    )
+    
+    
+    response = {
+        "1": {
+            "sabor": "Chocolate",
+            "ganancias": 0,
+            "pedidos": 0
+        },
+        "2": {
+            "sabor": "Vainilla",
+            "ganancias": 0,
+            "pedidos": 0
+        },
+        "3": {
+            "sabor": "Fresa",
+            "ganancias": 0,
+            "pedidos": 0
+        },
+        "total": {
+            "ganancias": 0,
+            "cantidad": 0
+        }
+    }
+    
+    total_ganancias = 0.0
+    total_pedidos = 0
+    
+    for saborizante_id, num_pedidos, ganancias_sabor, sabor in canjes:
+        response[saborizante_id] = {
+            "sabor": sabor,
+            "ganancias": float(ganancias_sabor or 0.0),
+            "pedidos": num_pedidos,
+        }
+        
+        total_ganancias += float(ganancias_sabor or 0.0)
+        total_pedidos += num_pedidos
+        
+    response["total"] = {
+        "ganancias": total_ganancias,
+        "cantidad": total_pedidos,
+    }
+    
+    return response
+
+
 
 @machine_router.get(
     "/inventario/{machine_id}/disponible/{pedido_id}",
