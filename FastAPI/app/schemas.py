@@ -376,4 +376,20 @@ class TipoFalloResponse(BaseModel):
     descripcion: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+class FalloResponse(BaseModel):
+    id_fallo: int
+    maquina: int
+    tipo_fallo: int
+    tipo_fallo_nombre: Optional[str]
+    fec_hora: datetime
+    descripcion: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+        
+class FalloCreate(BaseModel):
+    tipo_fallo: int
+    fec_hora: datetime
+    descripcion: Optional[str] = None

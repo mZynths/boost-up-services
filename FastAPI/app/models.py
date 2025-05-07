@@ -495,3 +495,32 @@ class TipoFallo(Base):
     id_tipo_fallo = Column(Integer, primary_key=True, autoincrement=True)
     nombre_fallo  = Column(String(50), nullable=False)
     descripcion   = Column(String(500), nullable=False)
+
+class Fallo(Base):
+    __tablename__ = 'Fallo'
+
+    id_fallo    = Column(Integer, primary_key=True, autoincrement=True)
+    maquina     = Column(
+        Integer,
+        ForeignKey('Maquina.id_maquina', onupdate='CASCADE'),
+        nullable=False,
+        index=True,
+        name='maquina'
+    )
+    tipo_fallo  = Column(
+        Integer,
+        ForeignKey('Tipo_Fallo.id_tipo_fallo', onupdate='CASCADE'),
+        nullable=False,
+        index=True,
+        name='tipo_fallo'
+    )
+    fec_hora    = Column(DateTime, nullable=False)
+    descripcion = Column(String(500), nullable=True)
+
+    # relationships
+    maquina_rel    = relationship('Maquina', cascade="none")
+    tipo_fallo_rel = relationship('TipoFallo', cascade="none")
+
+    @property
+    def tipo_fallo_nombre(self) -> str:
+        return self.tipo_fallo_rel.nombre_fallo if self.tipo_fallo_rel else None

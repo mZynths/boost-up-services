@@ -11,6 +11,10 @@ from pytz import timezone
 from jose import JWTError, jwt
 import os
 
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 from hashlib import sha256
 
 from exceptions import *
@@ -230,9 +234,129 @@ async def getInventory(user: Annotated[CurrentTechOrOwner, Depends(get_current_t
     return inventory
 
 @owner_tech_router.get("/tipos-fallo/", response_model=list[TipoFalloResponse])
-def read_tipos_fallo(db: Session = Depends(get_db)):
+def get_failure_types(
+    user: Annotated[CurrentTechOrOwner, Depends(get_current_tech_or_owner)],
+    db: Session = Depends(get_db)
+):
     tipos = db.query(TipoFallo).order_by(TipoFallo.id_tipo_fallo).all()
     return tipos
+
+@owner_tech_router.get("/maquina/fallos/", response_model=list[FalloResponse])
+def get_machine_fails(
+    user: Annotated[CurrentTechOrOwner, Depends(get_current_tech_or_owner)],
+    db: Session = Depends(get_db)
+):
+    machine = db.query(Maquina).get(user.machine)
+    if not machine:
+        raise HTTPException(404, "No se encontró la máquina")
+    
+    failures = (
+        db.query(Fallo)
+        .filter(Fallo.maquina == machine.id_maquina)
+        .order_by(Fallo.fec_hora.desc())
+        .all()
+    )
+   
+    return failures
+
+def emailFailure(failure: Fallo, tech: Technician, machine: Maquina):
+    email = tech.email
+    
+    msg = MIMEMultipart()
+    msg['From'] = NOREPLY_EMAIL
+    msg['To'] = email
+    msg['Subject'] = f"BoostUp - Fallo reportado #{failure.id_fallo}"
+    
+    html = (
+    f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="UTF-8">
+    <title>Nuevo fallo registrado</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px; text-align: center;">
+    <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+
+        <!-- Logo -->
+        <img src="https://boostup.life/logo.png" alt="Boost up logo"
+            style="max-width: 150px; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto;">
+
+        <h2>🚨 Nuevo fallo registrado</h2>
+        <p>Hola { tech.name } ({ tech.username }),</p>
+        <p>Se ha registrado un nuevo fallo en la máquina asignada a ti. A continuación los detalles:</p>
+
+        <div style="text-align: left; background-color: #f2f2f2; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <p><strong>ID de Fallo:</strong> {failure.id_fallo}</p>
+        <p><strong>Fecha y hora:</strong> {failure.fec_hora.strftime("%Y-%m-%d %H:%M:%S")}</p>
+        <p><strong>Tipo de fallo:</strong> {failure.tipo_fallo_nombre} (ID {failure.tipo_fallo})</p>
+        <p><strong>Descripción:</strong> {failure.descripcion or "— Sin descripción —"}</p>
+        <p><strong>Ubicación máquina:</strong> { machine.ubicacion or "— No disponible —" }</p>
+        </div>
+
+        <p style="margin-top: 30px;">Por favor, revisa este incidente a la brevedad.</p>
+
+        <p style="margin-top: 40px; font-size: 12px; color: #666;">
+            Tu dedicación y experiencia son el corazón de nuestra operación. ¡Gracias por ser un pilar fundamental de nuestro equipo!
+        </p>
+    </div>
+    </body>
+    </html>
+    """
+    )
+    
+    part = MIMEText(html, 'html')
+    msg.attach(part)
+    
+    try:
+        with smtplib.SMTP_SSL(SMTP_SERVER, 465) as smtp:
+            smtp.login(NOREPLY_EMAIL, NOREPLY_EMAIL_PASSWORD)
+            # Send the email
+            smtp.sendmail(NOREPLY_EMAIL, email, msg.as_string())
+        print("Email sent successfully!")
+        
+    except Exception as e:
+        print(f"Error sending email: {e}")
+
+@owner_tech_router.post("/maquina/fallos/", response_model=FalloResponse)
+def insert_machine_fail(
+    user: Annotated[CurrentTechOrOwner, Depends(get_current_tech_or_owner)],
+    fallo_in: FalloCreate,
+    db: Session = Depends(get_db)
+):
+    machine = db.query(Maquina).get(user.machine)
+    if not machine:
+        raise HTTPException(404, "No se encontró la máquina")
+    
+    tipo = db.get(TipoFallo, fallo_in.tipo_fallo)
+    if not tipo:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Tipo de fallo con id={fallo_in.tipo_fallo} no existe"
+        )
+    
+    new_fallo = Fallo(
+        maquina=machine.id_maquina,
+        tipo_fallo=tipo.id_tipo_fallo,
+        fec_hora=fallo_in.fec_hora,
+        descripcion=fallo_in.descripcion,
+    )
+    
+    db.add(new_fallo)
+    db.commit()
+    db.refresh(new_fallo)
+    
+    tech = db.query(Technician).filter(Technician.machine == machine.id_maquina).first()
+    
+    if not tech:
+        raise HTTPException(
+            status_code=404,
+            detail=f"El fallo se insertó pero no pudimos encontrar a ningun técnico responsable de la máquina"
+        )
+        
+    emailFailure(new_fallo, tech, machine)
+
+    return new_fallo
 
 def get_machine_for_tech(
     tech: TechnicianResponse = Depends(get_current_technician),
