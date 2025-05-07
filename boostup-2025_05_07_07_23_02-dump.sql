@@ -1,4 +1,4 @@
--- MySQL dump 10.13  Distrib 8.0.38, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.41, for Linux (x86_64)
 --
 -- Host: 127.0.0.1    Database: boost-up
 -- ------------------------------------------------------
@@ -60,7 +60,7 @@ CREATE TABLE `Alergia_Usuario` (
   KEY `Alergia_Usuario_Tipo_Alergeno_id_tipo_alergeno_fk` (`tipo_alergeno`),
   CONSTRAINT `Alergia_Usuario_Tipo_Alergeno_id_tipo_alergeno_fk` FOREIGN KEY (`tipo_alergeno`) REFERENCES `Tipo_Alergeno` (`id_tipo_alergeno`) ON UPDATE CASCADE,
   CONSTRAINT `Alergia_Usuario_Usuario_email_fk` FOREIGN KEY (`usuario`) REFERENCES `Usuario` (`email`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -69,7 +69,7 @@ CREATE TABLE `Alergia_Usuario` (
 
 LOCK TABLES `Alergia_Usuario` WRITE;
 /*!40000 ALTER TABLE `Alergia_Usuario` DISABLE KEYS */;
-INSERT INTO `Alergia_Usuario` VALUES (2,'dafely306@gmail.com',1),(4,'danamora700@gmail.com',1);
+INSERT INTO `Alergia_Usuario` VALUES (2,'danamora700@gmail.com',1),(3,'mzl.salva@gmail.com',2),(6,'mzl.salva@gmail.com',2),(10,'emmanuel369@gmail.com',1),(11,'dafely306@gmail.com',1),(12,'dafely306@gmail.com',1),(17,'panchiloholly@gmail.com',1),(18,'elyoly@hotmail.com',1),(20,'a21300624@ceti.mx',2);
 /*!40000 ALTER TABLE `Alergia_Usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -85,7 +85,7 @@ CREATE TABLE `Cantidades` (
   `proteina_gr` tinyint unsigned NOT NULL,
   `curcuma_gr` tinyint unsigned NOT NULL,
   PRIMARY KEY (`id_cantidades`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -94,7 +94,7 @@ CREATE TABLE `Cantidades` (
 
 LOCK TABLES `Cantidades` WRITE;
 /*!40000 ALTER TABLE `Cantidades` DISABLE KEYS */;
-INSERT INTO `Cantidades` VALUES (1,20,9),(2,40,7),(3,28,5),(4,35,5),(5,35,5),(6,26,10);
+INSERT INTO `Cantidades` VALUES (1,13,2),(2,25,2),(3,28,5),(4,20,9),(5,16,7),(6,23,10),(7,19,9),(19,20,2),(20,22,2),(22,21,2);
 /*!40000 ALTER TABLE `Cantidades` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -113,7 +113,7 @@ CREATE TABLE `Compra` (
   PRIMARY KEY (`id_compra`),
   KEY `Compra_Pedido_id_pedido_fk` (`pedido`),
   CONSTRAINT `Compra_Pedido_id_pedido_fk` FOREIGN KEY (`pedido`) REFERENCES `Pedido` (`id_pedido`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=49 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -122,7 +122,7 @@ CREATE TABLE `Compra` (
 
 LOCK TABLES `Compra` WRITE;
 /*!40000 ALTER TABLE `Compra` DISABLE KEYS */;
-INSERT INTO `Compra` VALUES (1,'pedido_prueba',100,'2025-02-25 00:15:06'),(3,'pedido2',10.25,'2025-02-01 00:13:16'),(4,'pedido3',147,'2025-02-27 00:13:34'),(5,'8a750ee4b67cd4da035f51f673b0b9899e951b98428a8114c45437977609a0ae',60,'2025-03-02 20:23:00');
+INSERT INTO `Compra` VALUES (8,'afcbf616751388c608fdc0380e07527007f19338823f88a326d3b9a058f91673',80,'2025-03-18 01:08:53'),(9,'35b2a5d048fb1a1a41d87b464d2fedcd43db784bd960abfb70d9a12f3f2d8a88',70,'2025-03-19 01:00:51'),(10,'edf45706ca1b4e0e51f903f7df57368cd04e51a0569c3d6be386200e5847a7e0',70,'2025-03-20 01:05:26'),(11,'0bce1738f044bad798aa47b19c5526aec5c7e9269e343a27f07cdbf78c577213',70,'2025-03-20 01:11:36'),(12,'e1fc86eb9fca2ff2b5da6299fc88f484e2785cae7cfabcf73e58738d3b52ddf7',80,'2025-03-20 03:47:18'),(13,'bcb93f790639e6a40802438a3933fb0c5297cbdaaa4be87a17ffed18f3b20bdd',70,'2025-03-20 03:49:49'),(14,'afe9cddc631fe64d770ed5e4662ebd801ee368041d4bc2d13facd6ccf267b261',80,'2025-03-23 21:14:34'),(15,'387e57a8b3c58bdf4c5dcf51683a64988408284736ed31c4c1fab3b256897124',80,'2025-04-19 20:11:19'),(16,'78f2110345ce0da0d18483ed38a5e651001decebc85d26e918838348c595c402',80,'2025-04-29 05:34:14'),(17,'d5fd1c69e3042a7413d31e166e9d1cdab08c5d66c7b9eaeb445eaf80b71ce49b',80,'2025-04-29 05:35:42'),(18,'9c0c29cac8b0806204256c2bcfc393f04e6ea7451a6b1d3dac0519acc228c2ef',79.98,'2025-04-29 05:41:35'),(19,'fcdd205ba7bf3a434c91b20885d7bfa1f4ae428e2e0fe5b293d8fc1f4f355f02',80,'2025-05-01 23:58:45'),(20,'e538efad5ba178aa913c56b82245a83cfbee2ce1016024ba7d3a759260deb73e',80,'2025-05-02 00:16:50'),(21,'5a36fbb8767983b395ec72955a80d4c3c79bd22a7dda84c7b71db1326d9c94b0',70,'2025-05-06 01:07:04'),(22,'03589863301e468860376dbd17d755f4661484249e2b350ac582d91e4552b3c0',70,'2025-05-06 02:00:16'),(23,'e69dbaa7ada43bbd18c01c5b4f4d4d8fc17a8e4eac4501c2bf5cc2aea0ffa9b2',70,'2025-05-06 02:12:29'),(24,'d4006cb37bed2bb998fdc6180fe0fc4045ebc9eb9834015e2ff06c250198ed8d',70,'2025-05-06 02:16:00'),(25,'1529920d250b854f3ccf8d6e7515339487c71ea7e89acf45fdc4cffc6c0047ec',70,'2025-05-06 07:05:41'),(26,'9a6b3c06e968e5667f689f8900dd1f2e0264253bc39e1ce75dcc3e96c9fb384f',70,'2025-05-06 07:07:02'),(27,'f1ea253faac333a8f8d086876fa0987bf7b5148d024e3348f2536f8ed3314541',80,'2025-05-06 07:20:09'),(28,'338958692290ea0efebb3992edf30401c57ede7f666a3d1d894f2394e4f1b290',79.98,'2025-05-06 08:32:10'),(29,'7343f5ebf20809fd2773e32552a04f922b3457c9dbb39e0f2c5e5867d09e0e6d',80,'2025-05-06 08:48:10'),(30,'0a73060f045dac88f79ef1c1f54887dd7e2d68ed5db47144cd1741cd2c94ecc3',70,'2025-05-06 08:48:49'),(31,'c4efc0ec1ab9c6734cb3eb62cea50004dc488a09c08ad330c90361fc6409aa9d',80,'2025-05-06 09:17:57'),(32,'f396ab781ff43641701a95082d3a2361e643810c2d572b5464d414a9cbc5bd0e',80,'2025-05-06 09:19:37'),(33,'fccbf15ec8cfd3e95172bf3f07b127da6d45f341561a1e9c8df5cf345d6594b1',70,'2025-05-06 22:04:01'),(34,'c281b648313602af1aa3210792d4f4b79a258edfebbe5070af486268bac20291',70,'2025-05-06 22:19:05'),(35,'7fa370cfff84d176136a707a3158731703fcea1ddb0abe8c8b64aa6af204eedd',80,'2025-05-06 22:23:50'),(36,'c910a58334c3b775a02fdd248d01b866e804a3d2152a4332b131a8f787392872',80,'2025-05-06 22:25:31'),(37,'72312b4d0b8471cfe32087987ea9c36a794c57e073f8de28dd658031be4d7b3c',70,'2025-05-07 00:02:13'),(38,'5326aaeda3bc450718c9fc5759fa8e1cda36bf543faebcb24ce67787524a7826',80,'2025-05-07 00:09:26'),(39,'021b79ab62b0e15239910010dfa37be36dfe1de36610a4721d5db347da9823ab',80,'2025-05-07 00:25:09'),(40,'36a0233395fedd88bcbddcf2cdf81f1ebab4e092186f11e69721c19e30cf70fc',80,'2025-05-07 00:45:10'),(41,'0046bf00b1d561c76a39a8273e59cbdc13d85109f1c28452ca397015e0333be1',80,'2025-05-07 01:10:58'),(42,'e96c2eb7b955c6e24f47770625853f3020ea35d847ed40464c71681c6c772cdf',80,'2025-05-07 01:21:53'),(43,'086a4dfff6b1ae81b2c5035be02d7ba687fca6d6c4f7d1b24f3d2a129f7a1d80',80,'2025-05-07 01:24:20'),(44,'4fd681c40850194294eaf2118a2b2ac9cdb8c8128b5f29b80e3455def8f50963',80,'2025-05-07 01:25:04'),(45,'d4b983e3efe84e08319e3b7415911ce21a8207f1c4cdfcdc9b532143b516a99a',70,'2025-05-07 01:26:14'),(46,'394b89b169d453ae72d5b8c72d7fb50c0ad205a2bf311311aca11b622c3bdcbb',80,'2025-05-07 01:29:50'),(47,'ae82ae0013d6dcb2d4a376f6cc1a7e082eafefa59ab47e8662b48ea19be0c7bb',80,'2025-05-07 01:39:47'),(48,'da9cb915498bf960177ae2876e5adf89a38ff6d6f4af4f3b4c1ccfef23f67286',70,'2025-05-07 01:42:44');
 /*!40000 ALTER TABLE `Compra` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -182,7 +182,7 @@ CREATE TABLE `Dueno` (
 
 LOCK TABLES `Dueno` WRITE;
 /*!40000 ALTER TABLE `Dueno` DISABLE KEYS */;
-INSERT INTO `Dueno` VALUES ('dafnetech',1,'Dafne Elizabeth','Vazquez Ortega','15e2b0d3c33891ebb0f1ef609ec419420c20e320ce94c65fbc8c3312448eb225');
+INSERT INTO `Dueno` VALUES ('chavaown',1,'Salvador','Arana','$2a$12$tuPFkp7SaO5IR1iCjBLQe.iQge/rgq9zgTo13f3.ki9EhJLkcu9Ta'),('dafnetech',1,'Dafne Elizabeth','Vazquez Ortega','15e2b0d3c33891ebb0f1ef609ec419420c20e320ce94c65fbc8c3312448eb225');
 /*!40000 ALTER TABLE `Dueno` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -204,7 +204,7 @@ CREATE TABLE `Fallo` (
   KEY `Fallo_Tipo_Fallo_id_tipo_fallo_fk` (`tipo_fallo`),
   CONSTRAINT `Fallo_Maquina_id_maquina_fk` FOREIGN KEY (`maquina`) REFERENCES `Maquina` (`id_maquina`) ON UPDATE CASCADE,
   CONSTRAINT `Fallo_Tipo_Fallo_id_tipo_fallo_fk` FOREIGN KEY (`tipo_fallo`) REFERENCES `Tipo_Fallo` (`id_tipo_fallo`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -213,7 +213,7 @@ CREATE TABLE `Fallo` (
 
 LOCK TABLES `Fallo` WRITE;
 /*!40000 ALTER TABLE `Fallo` DISABLE KEYS */;
-INSERT INTO `Fallo` VALUES (1,1,1,'2025-01-25 00:11:41','Prueba de fallo 1'),(2,1,1,'2025-01-25 11:41:00','prueba de fallo 2');
+INSERT INTO `Fallo` VALUES (1,1,1,'2025-01-25 00:11:41','Prueba de fallo 1'),(2,1,1,'2025-01-25 11:41:00','prueba de fallo 2'),(3,1,1,'2025-05-07 13:09:09','No jodas la maquina se pudrio'),(4,1,1,'2025-05-07 13:16:40','Ya se volvio a safar el dese de la desa');
 /*!40000 ALTER TABLE `Fallo` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -275,7 +275,7 @@ CREATE TABLE `Inv_Curcuma` (
 
 LOCK TABLES `Inv_Curcuma` WRITE;
 /*!40000 ALTER TABLE `Inv_Curcuma` DISABLE KEYS */;
-INSERT INTO `Inv_Curcuma` VALUES (1,1,1,92,'2025-01-31','2025-01-25 00:09:57','2025-03-28','2025-03-30');
+INSERT INTO `Inv_Curcuma` VALUES (1,1,1,100,'2026-05-06','2025-05-06 06:11:07','2025-05-06','2025-12-06');
 /*!40000 ALTER TABLE `Inv_Curcuma` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -309,7 +309,7 @@ CREATE TABLE `Inv_Proteina` (
 
 LOCK TABLES `Inv_Proteina` WRITE;
 /*!40000 ALTER TABLE `Inv_Proteina` DISABLE KEYS */;
-INSERT INTO `Inv_Proteina` VALUES (1,1,1,42,'2025-09-15','2025-02-03 00:00:00','2025-03-20','2025-03-22'),(2,2,1,100,'2025-01-30','2025-03-30 01:05:55','2025-03-18','2025-03-20');
+INSERT INTO `Inv_Proteina` VALUES (1,1,1,1337,'2025-05-07','2025-05-07 01:59:20','2025-05-07',NULL),(2,2,1,100,'2025-01-30','2025-03-30 01:05:55','2025-03-18','2025-03-20');
 /*!40000 ALTER TABLE `Inv_Proteina` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -343,7 +343,7 @@ CREATE TABLE `Inv_Saborizante` (
 
 LOCK TABLES `Inv_Saborizante` WRITE;
 /*!40000 ALTER TABLE `Inv_Saborizante` DISABLE KEYS */;
-INSERT INTO `Inv_Saborizante` VALUES (1,1,1,42,'2025-09-15','2025-02-03 00:00:00','2025-03-18','2025-03-20');
+INSERT INTO `Inv_Saborizante` VALUES (1,1,1,90,'2025-06-06','2025-05-06 06:11:46','2025-05-06','2025-06-30');
 /*!40000 ALTER TABLE `Inv_Saborizante` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -382,7 +382,7 @@ CREATE TABLE `Marca` (
   `id_marca` int NOT NULL AUTO_INCREMENT,
   `marca` varchar(100) NOT NULL,
   PRIMARY KEY (`id_marca`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -391,7 +391,7 @@ CREATE TABLE `Marca` (
 
 LOCK TABLES `Marca` WRITE;
 /*!40000 ALTER TABLE `Marca` DISABLE KEYS */;
-INSERT INTO `Marca` VALUES (1,'Birdman'),(2,'Deiman'),(3,'Nature Heart');
+INSERT INTO `Marca` VALUES (1,'Birdman'),(2,'Deiman'),(3,'Nature Heart'),(4,'Hero Sport');
 /*!40000 ALTER TABLE `Marca` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -412,7 +412,7 @@ CREATE TABLE `Medidas` (
   `circ_brazo_cm` tinyint unsigned NOT NULL,
   `fec_actualizacion` date NOT NULL,
   PRIMARY KEY (`id_medidas`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -421,7 +421,7 @@ CREATE TABLE `Medidas` (
 
 LOCK TABLES `Medidas` WRITE;
 /*!40000 ALTER TABLE `Medidas` DISABLE KEYS */;
-INSERT INTO `Medidas` VALUES (1,20.76,60,170,80,85,20,'2025-01-29'),(2,24.22,70,170,65,75,17,'2025-01-29'),(3,22.22,72,180,85,85,25,'2025-01-29'),(4,23.44,60,160,70,80,22,'2025-03-02');
+INSERT INTO `Medidas` VALUES (1,12.5,32,160,81,90,20,'2025-05-06'),(2,25.6173,83,180,120,107,31,'2025-05-01'),(3,22.22,72,180,85,85,25,'2025-01-29'),(4,26.8274,85,178,110,90,34,'2025-03-12'),(5,22.4914,65,170,70,85,20,'2025-03-23'),(6,25.8546,81,177,96,92,30,'2025-03-23'),(18,24.2188,62,160,85,95,30,'2025-05-05'),(19,33.4622,90,164,100,130,40,'2025-05-05'),(21,23.4375,60,160,90,90,50,'2025-05-07');
 /*!40000 ALTER TABLE `Medidas` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -463,7 +463,7 @@ CREATE TABLE `Pedido` (
 
 LOCK TABLES `Pedido` WRITE;
 /*!40000 ALTER TABLE `Pedido` DISABLE KEYS */;
-INSERT INTO `Pedido` VALUES ('8826d54ee61dc3efbfae6be5458323519b5bcfe9a75b542be9b1acdcfef8737b','dafely306@gmail.com',2,1,2,NULL,'no_canjeado',NULL,32,10),('8a750ee4b67cd4da035f51f673b0b9899e951b98428a8114c45437977609a0ae','danamora700@gmail.com',1,NULL,1,NULL,'no_canjeado',NULL,25,NULL),('e7a37cbe75f56c5e77d62baaf12210c13dc7757441c0c60e883d5e0229385627','dafely306@gmail.com',2,NULL,2,NULL,'no_canjeado',NULL,32,NULL),('pedido_prueba','dafely306@gmail.com',1,1,1,1,'no_canjeado','2025-01-25 00:13:09',10,5),('pedido2','dafely306@gmail.com',2,1,1,2,'canjeado','2025-03-02 21:39:25',5,2),('pedido3','dafely306@gmail.com',1,NULL,3,1,'no_canjeado','2025-01-31 00:09:46',20,NULL);
+INSERT INTO `Pedido` VALUES ('0046bf00b1d561c76a39a8273e59cbdc13d85109f1c28452ca397015e0333be1','danamora700@gmail.com',2,1,1,NULL,'no_canjeado',NULL,28,5),('021b79ab62b0e15239910010dfa37be36dfe1de36610a4721d5db347da9823ab','mzl.salva@gmail.com',1,1,1,1,'canjeado','2025-05-07 05:33:24',25,2),('03589863301e468860376dbd17d755f4661484249e2b350ac582d91e4552b3c0','dafely306@gmail.com',1,NULL,3,NULL,'no_canjeado',NULL,12,NULL),('06ea50ccb4003726b70053fb4bad7c27b1f4a419ef1dbb2ac9fe05d1bb67bf1b','dafely306@gmail.com',2,1,1,NULL,'no_canjeado',NULL,12,2),('086a4dfff6b1ae81b2c5035be02d7ba687fca6d6c4f7d1b24f3d2a129f7a1d80','danamora700@gmail.com',2,1,1,NULL,'no_canjeado',NULL,28,5),('0a73060f045dac88f79ef1c1f54887dd7e2d68ed5db47144cd1741cd2c94ecc3',NULL,4,NULL,2,NULL,'no_canjeado',NULL,21,NULL),('0bce1738f044bad798aa47b19c5526aec5c7e9269e343a27f07cdbf78c577213','mzl.salva@gmail.com',1,NULL,2,NULL,'no_canjeado',NULL,40,NULL),('0dbedbba615898453b0c34a7d7d0891175360b66ba8088a4b9a23e0aca714b5f','mzl.salva@gmail.com',1,NULL,1,NULL,'no_canjeado',NULL,25,NULL),('11cee14e3327ccc051791716aeb4d7ac80eca5fbae3c06e82bca87c1c4e31205','mzl.salva@gmail.com',1,1,1,NULL,'no_canjeado',NULL,25,2),('1366f30184e3b52829fa601c4a91919f1a79b9fd80027d81ce407426be73d58f','dafely306@gmail.com',2,1,1,NULL,'no_canjeado',NULL,13,2),('14fe7bdf9ee888c69c2b0190517a35ed0134b94643562b4438b9994e27b68092','mzl.salva@gmail.com',1,1,1,NULL,'no_canjeado',NULL,40,7),('1529920d250b854f3ccf8d6e7515339487c71ea7e89acf45fdc4cffc6c0047ec','dafely306@gmail.com',1,NULL,3,NULL,'no_canjeado',NULL,12,NULL),('2433af9ae2c457d44a834a7aaf66a58624e1f9a6abbe33b14062496083c92505','dafely306@gmail.com',1,1,1,NULL,'no_canjeado',NULL,13,2),('338958692290ea0efebb3992edf30401c57ede7f666a3d1d894f2394e4f1b290','dafely306@gmail.com',2,1,2,NULL,'no_canjeado',NULL,12,2),('340f7ab92d67225f4af50fe1e3cdb894ea4e9c8d2f23a536b8d659868b1a5d0d','mzl.salva@gmail.com',1,1,1,NULL,'no_canjeado',NULL,25,2),('35b2a5d048fb1a1a41d87b464d2fedcd43db784bd960abfb70d9a12f3f2d8a88','mzl.salva@gmail.com',1,NULL,2,NULL,'no_canjeado',NULL,40,NULL),('36a0233395fedd88bcbddcf2cdf81f1ebab4e092186f11e69721c19e30cf70fc','danamora700@gmail.com',1,1,1,NULL,'no_canjeado',NULL,28,5),('387e57a8b3c58bdf4c5dcf51683a64988408284736ed31c4c1fab3b256897124','mzl.salva@gmail.com',1,1,1,1,'canjeado','2025-05-07 05:33:24',40,7),('394b89b169d453ae72d5b8c72d7fb50c0ad205a2bf311311aca11b622c3bdcbb','danamora700@gmail.com',1,1,1,NULL,'no_canjeado',NULL,28,5),('3a10234941b12a1322f3ee65c27ae053995a81aa02b85ddbdab1c9288e9b0c9d','mzl.salva@gmail.com',1,1,1,NULL,'no_canjeado',NULL,25,2),('4a26888cde353b4a4a7cc53778e9e4d0b63b33409f45bfa24473ebcb76f4bac7','mzl.salva@gmail.com',1,1,1,NULL,'no_canjeado',NULL,25,2),('4fd681c40850194294eaf2118a2b2ac9cdb8c8128b5f29b80e3455def8f50963','panchiloholly@gmail.com',1,1,2,NULL,'no_canjeado',NULL,20,2),('5326aaeda3bc450718c9fc5759fa8e1cda36bf543faebcb24ce67787524a7826','dafely306@gmail.com',2,1,2,NULL,'no_canjeado',NULL,13,2),('558aa7d1b35289d665875efd6e80e12758a0791cc9b73ff9a04788d038aeaf3b','mzl.salva@gmail.com',2,1,2,NULL,'no_canjeado',NULL,40,7),('5a36fbb8767983b395ec72955a80d4c3c79bd22a7dda84c7b71db1326d9c94b0','mzl.salva@gmail.com',1,NULL,1,1,'canjeado','2025-05-07 05:33:24',25,NULL),('70136b14408d4ef1fc81f06c023e3f6ed56356891efacd570abc8682198f1ed3','dafely306@gmail.com',2,1,2,NULL,'no_canjeado',NULL,13,2),('72312b4d0b8471cfe32087987ea9c36a794c57e073f8de28dd658031be4d7b3c','dafely306@gmail.com',1,NULL,3,NULL,'no_canjeado',NULL,13,NULL),('7343f5ebf20809fd2773e32552a04f922b3457c9dbb39e0f2c5e5867d09e0e6d',NULL,3,1,3,NULL,'no_canjeado',NULL,21,2),('78f2110345ce0da0d18483ed38a5e651001decebc85d26e918838348c595c402','mzl.salva@gmail.com',1,1,1,1,'canjeado','2025-04-07 05:33:24',40,7),('7cb0e72324b99c3e9852069f77f7b8b882b018e2b226683cfb86a293315b114a','panchiloholly@gmail.com',2,1,2,NULL,'no_canjeado',NULL,20,2),('7fa370cfff84d176136a707a3158731703fcea1ddb0abe8c8b64aa6af204eedd','dafely306@gmail.com',2,1,1,NULL,'no_canjeado',NULL,13,2),('82cfd3c291004c5c9b53788252b27d0cedc1ac2061e4fa34132e5de4447d4741','mzl.salva@gmail.com',1,1,1,NULL,'no_canjeado',NULL,25,2),('8564e5a6b4c7f01273de2d696a05e52def81de8132d4999c55d2929168226db1','panchiloholly@gmail.com',2,1,2,NULL,'no_canjeado',NULL,20,2),('8cc533da27d111c283181e0a380ee20303b6b2943699ab679ed0a61e3f29aeb6','mzl.salva@gmail.com',2,1,1,NULL,'no_canjeado',NULL,25,2),('970bc33b4d63e31b3703ac799457f500b89ebd0414d92f404b5601e9c9db5e22','dafely306@gmail.com',1,NULL,3,NULL,'no_canjeado',NULL,12,NULL),('9a6b3c06e968e5667f689f8900dd1f2e0264253bc39e1ce75dcc3e96c9fb384f','dafely306@gmail.com',1,NULL,3,NULL,'no_canjeado',NULL,12,NULL),('9c0c29cac8b0806204256c2bcfc393f04e6ea7451a6b1d3dac0519acc228c2ef','mzl.salva@gmail.com',2,1,3,1,'canjeado','2025-04-07 05:33:24',40,7),('a1e1d02bde490103789766ca3a45b7af09d42cd7364a87cd9991ebf822cb4837','panchiloholly@gmail.com',1,1,2,NULL,'no_canjeado',NULL,20,2),('a28eddc9cd9fa8c3dc050d138ad6bdece07fe8f972cda2bcd5bd403b66da87f9','dafely306@gmail.com',2,NULL,1,NULL,'no_canjeado',NULL,13,NULL),('a41f825202722e0bf4da5c546eb9423865355c7a9d2505e4fc4fd41f522fe2f2','dafely306@gmail.com',2,NULL,1,NULL,'no_canjeado',NULL,12,NULL),('ae82ae0013d6dcb2d4a376f6cc1a7e082eafefa59ab47e8662b48ea19be0c7bb','danamora700@gmail.com',1,1,1,NULL,'no_canjeado',NULL,28,5),('afcbf616751388c608fdc0380e07527007f19338823f88a326d3b9a058f91673','mzl.salva@gmail.com',1,1,1,NULL,'no_canjeado',NULL,40,7),('afe9cddc631fe64d770ed5e4662ebd801ee368041d4bc2d13facd6ccf267b261','mzl.salva@gmail.com',1,1,1,NULL,'no_canjeado',NULL,40,7),('b10a2a84a43c4fdd56582aa2c20cedc2d5b56f30fbf7cb0de7c22a518ea29347','mzl.salva@gmail.com',2,1,1,NULL,'no_canjeado',NULL,25,2),('b68d71d32d317a6c6bad2181dec87abd383245ce37f8f84d242ae8ff361fb86f','mzl.salva@gmail.com',1,1,1,NULL,'no_canjeado',NULL,25,2),('bcb93f790639e6a40802438a3933fb0c5297cbdaaa4be87a17ffed18f3b20bdd','mzl.salva@gmail.com',1,NULL,3,NULL,'no_canjeado',NULL,40,NULL),('c281b648313602af1aa3210792d4f4b79a258edfebbe5070af486268bac20291','dafely306@gmail.com',1,NULL,2,NULL,'no_canjeado',NULL,13,NULL),('c4efc0ec1ab9c6734cb3eb62cea50004dc488a09c08ad330c90361fc6409aa9d','dafely306@gmail.com',2,1,2,NULL,'no_canjeado',NULL,13,2),('c910a58334c3b775a02fdd248d01b866e804a3d2152a4332b131a8f787392872','dafely306@gmail.com',1,1,2,NULL,'no_canjeado',NULL,13,2),('cb5bc1a3fc01aab67eb64b3be978acb1a755ba309abe4a3e59d71e1138ca0007','dafely306@gmail.com',1,1,1,NULL,'no_canjeado',NULL,12,2),('cdf9ccb9c68137b575e6e0d60e23fd23b1d946b659b9220200f87f2674b5e4db','dafely306@gmail.com',1,NULL,3,NULL,'no_canjeado',NULL,12,NULL),('d4006cb37bed2bb998fdc6180fe0fc4045ebc9eb9834015e2ff06c250198ed8d','dafely306@gmail.com',1,NULL,3,NULL,'no_canjeado',NULL,12,NULL),('d4b983e3efe84e08319e3b7415911ce21a8207f1c4cdfcdc9b532143b516a99a','panchiloholly@gmail.com',2,NULL,2,NULL,'no_canjeado',NULL,20,NULL),('d5fd1c69e3042a7413d31e166e9d1cdab08c5d66c7b9eaeb445eaf80b71ce49b','mzl.salva@gmail.com',1,1,2,1,'canjeado','2025-04-07 05:33:24',40,7),('da9cb915498bf960177ae2876e5adf89a38ff6d6f4af4f3b4c1ccfef23f67286','danamora700@gmail.com',2,NULL,1,NULL,'no_canjeado',NULL,28,NULL),('e1fc86eb9fca2ff2b5da6299fc88f484e2785cae7cfabcf73e58738d3b52ddf7','danamora700@gmail.com',1,1,1,NULL,'no_canjeado',NULL,40,7),('e538efad5ba178aa913c56b82245a83cfbee2ce1016024ba7d3a759260deb73e','danamora700@gmail.com',1,1,2,NULL,'no_canjeado',NULL,40,7),('e69dbaa7ada43bbd18c01c5b4f4d4d8fc17a8e4eac4501c2bf5cc2aea0ffa9b2','dafely306@gmail.com',1,NULL,3,NULL,'no_canjeado',NULL,12,NULL),('e96c2eb7b955c6e24f47770625853f3020ea35d847ed40464c71681c6c772cdf','danamora700@gmail.com',2,1,1,NULL,'no_canjeado',NULL,28,5),('ea912abd1db798c47ed2cf111442e2ed5a3247c417da02a8965c698ecc20000b','dafely306@gmail.com',3,1,2,NULL,'no_canjeado',NULL,13,2),('ed22db2458f13e60d949f2068272a6cb811eb5bf3d4ce27e909bfca8db1a53f5','panchiloholly@gmail.com',1,1,1,NULL,'no_canjeado',NULL,20,2),('edf45706ca1b4e0e51f903f7df57368cd04e51a0569c3d6be386200e5847a7e0','dafely306@gmail.com',1,NULL,2,NULL,'canjeado',NULL,40,NULL),('f104bebbc01b2609edf9130c249f74364e07564cd2a44dd2ee7e472a7722126c','dafely306@gmail.com',1,NULL,3,NULL,'no_canjeado',NULL,12,NULL),('f19c5ab6d5070f67fb6034b45667ecb3e8fba944c34641c9912e49a1ceeb2acc','danamora700@gmail.com',1,1,1,NULL,'no_canjeado',NULL,28,5),('f1ea253faac333a8f8d086876fa0987bf7b5148d024e3348f2536f8ed3314541','dafely306@gmail.com',1,1,3,NULL,'no_canjeado',NULL,12,2),('f1ee94f9b51c2a6466e1e7c4c740f61cb4d3358355e7e1e9e3befd4a57fbb595','dafely306@gmail.com',2,1,2,NULL,'no_canjeado',NULL,13,2),('f396ab781ff43641701a95082d3a2361e643810c2d572b5464d414a9cbc5bd0e','dafely306@gmail.com',2,1,1,NULL,'canjeado',NULL,13,2),('f6e705ce12bb6488bddabc6d93f25610db7a4a99f85aa4b4370670136177029e','mzl.salva@gmail.com',1,1,1,NULL,'no_canjeado',NULL,25,2),('f7536056005c2c0d14d3bbc0c11cf33d39a0618aed89d54176fced591ea6da2d','mzl.salva@gmail.com',1,1,1,NULL,'no_canjeado',NULL,25,2),('fccbf15ec8cfd3e95172bf3f07b127da6d45f341561a1e9c8df5cf345d6594b1','dafely306@gmail.com',2,NULL,1,NULL,'no_canjeado',NULL,13,NULL),('fcdd205ba7bf3a434c91b20885d7bfa1f4ae428e2e0fe5b293d8fc1f4f355f02','dafely306@gmail.com',1,1,1,NULL,'no_canjeado',NULL,40,7),('fd4954b5b52aeeaca9642b49ee1ba6f091c69e3ee96332df6611a851c6610444','panchiloholly@gmail.com',2,NULL,2,NULL,'no_canjeado',NULL,20,NULL);
 /*!40000 ALTER TABLE `Pedido` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -486,7 +486,7 @@ CREATE TABLE `Proteina` (
   PRIMARY KEY (`id_proteina`),
   KEY `Proteina_Marca_id_marca_fk` (`marca`),
   CONSTRAINT `Proteina_Marca_id_marca_fk` FOREIGN KEY (`marca`) REFERENCES `Marca` (`id_marca`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -495,7 +495,7 @@ CREATE TABLE `Proteina` (
 
 LOCK TABLES `Proteina` WRITE;
 /*!40000 ALTER TABLE `Proteina` DISABLE KEYS */;
-INSERT INTO `Proteina` VALUES (1,1,'Vegetal','Falcon Protein','Proteinas: muchas',1.5,'2025-01-25',70),(2,2,'Animal','Pure And Natural','Proteinas: muchas',2,'2025-01-28',69.99);
+INSERT INTO `Proteina` VALUES (1,1,'Vegetal','Falcon Protein','Proteinas: muchas',0.8,'2025-01-25',70),(2,4,'Animal','Pure And Natural','Proteinas: muchas',0.9,'2025-01-28',70),(3,1,'Vegetal','Proteina buena','Proteinas: muchas',0.9,'2025-05-06',70),(4,4,'Animal','proteina chida','Proteinas: muchas',0.9,'2025-05-06',70);
 /*!40000 ALTER TABLE `Proteina` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -584,7 +584,7 @@ CREATE TABLE `Tecnico` (
 
 LOCK TABLES `Tecnico` WRITE;
 /*!40000 ALTER TABLE `Tecnico` DISABLE KEYS */;
-INSERT INTO `Tecnico` VALUES ('danatech',1,'Dana Sofia','Mora Villalobos','15e2b0d3c33891ebb0f1ef609ec419420c20e320ce94c65fbc8c3312448eb225','danamora700@gmail.com');
+INSERT INTO `Tecnico` VALUES ('chavatech',1,'Salvador','Arana','$2a$12$We6CncT0PaX/w0xCTqKeyewJjPxPe0hyYRWeD/ZmPn7OxU9qHyujy','mazl0nf3k@gmail.com'),('danatech',1,'Dana Sofia','Mora Villalobos','15e2b0d3c33891ebb0f1ef609ec419420c20e320ce94c65fbc8c3312448eb225','danamora700@gmail.com');
 /*!40000 ALTER TABLE `Tecnico` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -683,8 +683,8 @@ CREATE TABLE `Usuario` (
   PRIMARY KEY (`email`),
   KEY `Usuario_Cantidades_id_cantidades_fk` (`cantidades`),
   KEY `Usuario_Medidas_id_medidas_fk` (`medidas`),
-  CONSTRAINT `Usuario_Cantidades_id_cantidades_fk` FOREIGN KEY (`cantidades`) REFERENCES `Cantidades` (`id_cantidades`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `Usuario_Medidas_id_medidas_fk` FOREIGN KEY (`medidas`) REFERENCES `Medidas` (`id_medidas`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `Usuario_Cantidades_id_cantidades_fk` FOREIGN KEY (`cantidades`) REFERENCES `Cantidades` (`id_cantidades`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `Usuario_Medidas_id_medidas_fk` FOREIGN KEY (`medidas`) REFERENCES `Medidas` (`id_medidas`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -694,7 +694,7 @@ CREATE TABLE `Usuario` (
 
 LOCK TABLES `Usuario` WRITE;
 /*!40000 ALTER TABLE `Usuario` DISABLE KEYS */;
-INSERT INTO `Usuario` VALUES ('dafely306@gmail.com',1,1,'$2a$12$sJeYHLiXu20OBxpw8MZ3V.hCuIPJwLeNdDenaGC9NmmQseelesAKm','Femenino','2025-01-29','Dafne','Dafne Elizabeth','Vazquez Ortega',18,'2006-06-03'),('danamora700@gmail.com',3,3,'$2a$12$lFATc4HOqXOB.gOzQ1ByruZX8luouPbh9MFfgB00pxsshXbby16Vq','Femenino','2025-01-29','Dana','Dana Sofia','Mora Villalobos',18,'2006-06-10'),('mazl0nf3k@gmail.com',NULL,NULL,'$2b$12$mD2UvUfuCzGwjItHl3BAWuQ/S3yfWwt9n10ifLv6H/dcVq9aiZb92','Masculino','2025-03-05','String','Juan','Perez',25,'2000-03-05'),('mzl.salva@gmail.com',2,2,'$2a$12$297EVRIerlZrJgB9RbhWqe.jrIMtKADQrS.r8KV5wgYq4W1wN1Q5u','Masculino','2025-01-29','Salvador','Salvador Chava','Arana Mercado',22,'2002-09-18');
+INSERT INTO `Usuario` VALUES ('a21300624@ceti.mx',21,22,'$2b$12$X6hDk2IJsBf1f90elWxEaeakNSrJhODpmbHO470AdCJ/zvMKAZ4kW','Masculino','2025-05-07','Tay','Taylor','Swift ',18,'2006-06-03'),('dafely306@gmail.com',1,1,'$2b$12$Czf6AA8msiL.fqdDojLa9OxWtLsmdGhXWQo92bowXNEBkcUGymZ2K','Femenino','2025-03-09','Dafne','Dafne ','Vazquez',18,'2006-06-03'),('danamora700@gmail.com',3,3,'$2b$12$PHMTdb7hZcWNKCs002nfr.dFrVUUAn852QnrIffatQKtmNN8R8t5C','Femenino','2025-01-29','Dana','Dana Sofia','Mora Villalobos',18,'2006-06-10'),('elyoly@hotmail.com',19,20,'$2b$12$UygW9gXIK9fGB4azEaAAsOBQwHNKKlPFabuz4Lr.RaMQvjmbqWgk.','Femenino','2025-05-05','Elyoly','Elisa','Ortega',54,'1970-12-14'),('emmanuel369@gmail.com',6,6,'$2b$12$ET5Jtqej6jLQT7WtYW2cmuE2m4B2q/sEHPat7ukHBpcdtNlFd.G0a','Masculino','2025-03-23','Emmonuel','Emmanuel','Cruz',19,'2006-03-06'),('mzl.salva@gmail.com',2,2,'$2b$12$3F3TnKZyTUe07MyprBPmOOAIV5f6h2VY1sr5XA7TmE3HnjIAZhv0i','Masculino','2025-01-29','Zynths','Salvador','Arana',22,'2002-09-18'),('panchiloholly@gmail.com',18,19,'$2b$12$CBiFLz7TBFlVVqe3G0Tejuxk.0FkfVT7D3QRfG2t1doFFUkgDl4C6','Femenino','2025-05-05','Nanely','Dafne Elizabeth ','Vazquez Ortega ',18,'2006-06-03'),('twinsdafxitla@gmail.com',5,5,'$2b$12$8jYRgvcfZmHlADRfZaqjH.KCEhkoyKLMbpFH1HJJlgJh3rvTEFKD.','Femenino','2025-03-23','Xitla','Xitlalli','Cruz',18,'2006-06-03');
 /*!40000 ALTER TABLE `Usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -707,4 +707,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-03-05  4:57:10
+-- Dump completed on 2025-05-07  7:23:32
