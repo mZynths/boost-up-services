@@ -488,3 +488,10 @@ class InvSaborizante(Base):
 
     maquina_obj = relationship("Maquina", back_populates="inv_saborizante")
     saborizante_obj = relationship("Saborizante")
+
+class TipoFallo(Base):
+    __tablename__ = 'Tipo_Fallo'
+
+    id_tipo_fallo = Column(Integer, primary_key=True, autoincrement=True)
+    nombre_fallo  = Column(String(50), nullable=False)
+    descripcion   = Column(String(500), nullable=False)

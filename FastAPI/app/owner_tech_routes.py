@@ -229,6 +229,11 @@ async def getInventory(user: Annotated[CurrentTechOrOwner, Depends(get_current_t
 
     return inventory
 
+@owner_tech_router.get("/tipos-fallo/", response_model=list[TipoFalloResponse])
+def read_tipos_fallo(db: Session = Depends(get_db)):
+    tipos = db.query(TipoFallo).order_by(TipoFallo.id_tipo_fallo).all()
+    return tipos
+
 def get_machine_for_tech(
     tech: TechnicianResponse = Depends(get_current_technician),
     db: Session = Depends(get_db)

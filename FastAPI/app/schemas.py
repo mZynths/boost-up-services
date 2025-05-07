@@ -369,3 +369,11 @@ class MaquinaUbicacionPutRequest(BaseModel):
     
     class Config:
         from_attributes = True
+        
+class TipoFalloResponse(BaseModel):
+    id_tipo_fallo: int
+    nombre_fallo: str
+    descripcion: str
+
+    class Config:
+        orm_mode = True
