@@ -363,3 +363,9 @@ class MaquinaResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        
+class MaquinaUbicacionPutRequest(BaseModel):
+    ubicacion: str
+    
+    class Config:
+        from_attributes = True

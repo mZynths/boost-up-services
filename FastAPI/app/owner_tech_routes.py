@@ -331,6 +331,17 @@ async def restock_saborizante(
 async def maquina_info(machine: Maquina = Depends(get_machine_for_tech), db: Session = Depends(get_db)):
     return machine
 
+@technician_router.put("/maquina/ubicacion/", response_model=MaquinaResponse)
+async def maquina_update_nombre(
+    req: MaquinaUbicacionPutRequest,        
+    machine: Maquina = Depends(get_machine_for_tech), 
+    db: Session = Depends(get_db)
+):
+    machine.ubicacion = req.ubicacion
+    db.commit()
+        
+    return machine
+
 @machine_router.get(
     "/inventario/{machine_id}/disponible/{pedido_id}",
     response_model=bool,
