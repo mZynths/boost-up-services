@@ -327,7 +327,9 @@ async def restock_saborizante(
     db.refresh(inv)
     return inv
 
-
+@technician_router.get("/maquina/info/", response_model=MaquinaResponse)
+async def maquina_info(machine: Maquina = Depends(get_machine_for_tech), db: Session = Depends(get_db)):
+    return machine
 
 @machine_router.get(
     "/inventario/{machine_id}/disponible/{pedido_id}",

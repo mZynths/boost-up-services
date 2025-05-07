@@ -356,3 +356,10 @@ class InvSaborizanteResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        
+class MaquinaResponse(BaseModel):
+    id_maquina: int
+    ubicacion: str
+
+    class Config:
+        from_attributes = True
