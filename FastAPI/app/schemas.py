@@ -54,6 +54,7 @@ class UsuarioResponse(BaseModel):
     fec_nacimiento: date
     medidas: Optional[int] = None
     cantidades: Optional[int] = None
+    stripe_customer_id: str
     
     class Config:
         from_attributes = True

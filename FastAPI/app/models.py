@@ -103,6 +103,7 @@ class Usuario(Base):
     apellido = Column(String(100), nullable=False)
     edad = Column(TINYINT, nullable=False)
     fec_nacimiento = Column(Date, nullable=False)
+    stripe_customer_id = Column(String(64), nullable=True)
 
     medidas = Column(
         ForeignKey(

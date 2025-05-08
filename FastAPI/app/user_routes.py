@@ -311,13 +311,19 @@ def create_user(user: UsuarioCreate, db: Session = Depends(get_db)):
     db.refresh(db_cantidades)
     db.refresh(db_medidas)
     
+    stripe_customer = stripe.Customer.create(
+        name=f'{user.nombre} {user.apellido}',
+        email=user.email
+    )
+    
+    db_user.stripe_customer_id = stripe_customer.id
     db_user.medidas = db_medidas.id_medidas
     db_user.cantidades = db_cantidades.id_cantidades
     
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-
+    
     return db_user
 
 # Get Usuario medidas and age
@@ -328,6 +334,106 @@ def get_my_medidas(usuario: Annotated[UsuarioResponse, Depends(get_current_usuar
     ).filter(Usuario.email == usuario.email).first()
     
     return db_result
+
+# New stripe implementation
+@usuario_router.post("/pedirNew/")
+def put_order_new(
+    pedido: PedidoCreate, 
+    usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)], 
+    db: Session = Depends(get_db)
+):
+    has_curcuma = pedido.curcuma != -1
+    
+    db_proteina: Proteina = db.query(Proteina).filter(Proteina.id_proteina == pedido.proteina).first()
+    
+    if not db_proteina:
+        raise HTTPException(
+            status_code = 404,
+            detail = f"Proteina with id {pedido.proteina} does not exist"
+        )
+        
+    db_saborizante: Saborizante = db.query(Saborizante).filter(Saborizante.id_saborizante == pedido.saborizante).first()
+    
+    if not db_saborizante:
+        raise HTTPException(
+            status_code = 404,
+            detail = f"Saborizante with id {pedido.saborizante} does not exist"
+        )
+    
+    db_curcuma: Curcuma = db.query(Curcuma).filter(Curcuma.id_curcuma == pedido.curcuma).first()
+    
+    if has_curcuma and not db_curcuma:
+        raise HTTPException(
+            status_code = 404,
+            detail = f"Curcuma with id {pedido.curcuma} does not exist"
+        )
+    
+    db_cantidades: Cantidades = db.query(Cantidades).filter(Cantidades.id_cantidades == usuario.cantidades).first()
+    
+    if not db_cantidades:
+        raise HTTPException(
+            status_code = 404,
+            detail = f"User {usuario.email} does not have cantidades"
+        )
+    
+    proteina_gr = db_cantidades.proteina_gr
+    
+    today = datetime.now(timezone('America/Mexico_City'))
+    
+    prehash = f"{usuario.email}:{pedido.proteina}:{pedido.saborizante}:{proteina_gr}:{today}"
+    
+    id_pedido = sha256(prehash.encode("utf-8")).hexdigest()
+    
+    db_pedido = Pedido(
+        id_pedido = id_pedido,
+        usuario_email = usuario.email,
+        proteina_id = pedido.proteina,
+        saborizante_id = pedido.saborizante,
+        proteina_gr = proteina_gr,
+        estado_canje = "no_canjeado"
+    )
+    
+    precio = db_proteina.precio
+    
+    if has_curcuma:
+        db_pedido.curcuma_gr = db_cantidades.curcuma_gr
+        db_pedido.curcuma_id = pedido.curcuma
+        precio += db_curcuma.precio
+    
+    precio = precio * 100
+    try:
+        intent = stripe.PaymentIntent.create(
+            amount = int(precio),
+            currency = 'mxn',
+            metadata = {"id_pedido": id_pedido},
+            customer = usuario.stripe_customer_id,
+            automatic_payment_methods={'enabled': True},
+            setup_future_usage='off_session'
+        )
+        
+        db.add(db_pedido)
+        db.commit()
+        db.refresh(db_pedido)
+        
+        ephemeral_key = stripe.EphemeralKey.create(
+            customer=usuario.stripe_customer_id,
+            stripe_version='2025-02-24.acacia'  # required
+        )
+        
+        return {
+            "customer_id": usuario.stripe_customer_id,
+            "ephemeral_key": ephemeral_key['secret'],
+            "id_pedido": id_pedido,
+            "clientSecret": intent['client_secret']
+        }
+                
+    except Exception as e:
+        raise HTTPException(
+            status_code = 403,
+            detail = str(e)
+        )
+        
+
 
 # Put an order
 @usuario_router.post("/pedir/")
