@@ -2,7 +2,7 @@ import asyncio
 
 from fastapi import HTTPException, Depends, status, APIRouter
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from sqlalchemy.orm import Session, joinedload
 from typing import Annotated
@@ -512,26 +512,28 @@ def mark_token_used(token: str):
 def is_token_used(token: str) -> bool:
     return token in used_tokens
 
-# Really confirm the tempPass 
-@usuario_router.post("/confirmResetPassword/")
-def confirmResetPasswordEmail(resetToken: ResetTokenData, db: Session = Depends(get_db)):
-    email = verify_password_reset_token(resetToken.token)
+# Send email "Temporary password"
+@usuario_router.get("/resetPassword/{resetToken}")
+def sendResetPasswordEmail(resetToken: str, db: Session = Depends(get_db)):
+    email = ""
     
-    if is_token_used(resetToken.token):
-        raise HTTPException(
-            status_code = 403,
-            detail=f"Este token ya fue usado"
-        )
+    try:
+        email = verify_password_reset_token(resetToken)
+    except:
+        return RedirectResponse(url="/resetPasswordExpired")
     
-    mark_token_used(resetToken.token)
+    if is_token_used(resetToken):
+        return RedirectResponse(url="/resetPasswordUsed")
     
     user:Usuario = db.query(Usuario).filter(Usuario.email == email).first()
     
     if not user:
         raise HTTPException(
-            status_code = 403,
+            status_code = 404,
             detail = f"El usuario {email} no existe"
         )
+        
+    mark_token_used(resetToken)
     
     tempPass = generate_temp_password()
     hashed_pass = pwd_context.hash(tempPass)
@@ -587,30 +589,8 @@ def confirmResetPasswordEmail(resetToken: ResetTokenData, db: Session = Depends(
         
     except Exception as e:
         print(f"Error sending email: {e}")
-
-# Send email "Temporary password"
-@usuario_router.get("/resetPassword/{resetToken}")
-def sendResetPasswordEmail(resetToken: str, db: Session = Depends(get_db)):
         
-    return HTMLResponse(f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-            <script>
-                fetch("/usuario/confirmResetPassword/", {{
-                    method: "POST",
-                    headers: {{ "Content-Type": "application/json" }},
-                    body: JSON.stringify({{ token: "{resetToken}" }})
-                }}).then(() => {{
-                    window.close();
-                }});
-            </script>
-            </head>
-            <body>
-            <p>Ya te enviamos tu contraseña temporal a tu correo, puedes cerrar esta página.</p>
-            </body>
-            </html>
-        """)
+    return RedirectResponse(url="/resetPasswordSuccess")
 
 def create_password_reset_token(email: str) -> str:
     token_expires_time = timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)

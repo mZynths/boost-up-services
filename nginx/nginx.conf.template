@@ -36,6 +36,24 @@ server {
     add_header Access-Control-Allow-Origin *;
   }
 
+  location = /resetPasswordExpired {
+    root /usr/share/nginx/html;
+    try_files /linkExpired.html =404;
+    add_header Access-Control-Allow-Origin *;
+  }
+
+  location = /resetPasswordUsed {
+    root /usr/share/nginx/html;
+    try_files /linkUsed.html =404;
+    add_header Access-Control-Allow-Origin *;
+  }
+
+  location = /resetPasswordSuccess {
+    root /usr/share/nginx/html;
+    try_files /linkWorked.html =404;
+    add_header Access-Control-Allow-Origin *;
+  }
+
   location = /.env {
     return 302 https://www.youtube.com/watch?v=dQw4w9WgXcQ;
   }
