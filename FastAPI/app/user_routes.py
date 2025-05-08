@@ -107,6 +107,36 @@ async def get_user_token(db: db_dependency, form_data: OAuth2PasswordRequestForm
 @usuario_router.get("/yo/", response_model=UsuarioResponse, tags=["usuario"])
 async def get_my_user(current_usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)]): return current_usuario
 
+# Get my payment methods (information for stripe)
+@usuario_router.get("/paymentMethods/", response_model=PaymentMethodsResponse)
+async def get_my_user(user: Annotated[UsuarioResponse, Depends(get_current_usuario)], db: Session = Depends(get_db)):
+    if not user.stripe_customer_id:
+        stripe_customer = stripe.Customer.create(
+            name=f'{user.nombre} {user.apellido}',
+            email=user.email
+        )
+    
+        user.stripe_customer_id = stripe_customer.id
+        db.commit()
+        db.refresh(user)
+    
+    setup_intent = stripe.SetupIntent.create(
+        customer=user.stripe_customer_id
+    )
+    
+    ephemeral_key = stripe.EphemeralKey.create(
+        customer=user.stripe_customer_id,
+        stripe_version='2025-02-24.acacia'  # required
+    )
+    
+    response = PaymentMethodsResponse(
+        customer_id = user.stripe_customer_id,
+        client_secret = setup_intent['client_secret'],
+        ephemeral_key = ephemeral_key['secret']
+    )
+    
+    return response
+
 def calculateIMC(peso, talla): return peso/((talla/100)**2)
 
 def calculateCantidades(imc, edad, sexo, circ_brazo_cm, cintura_cm, cadera_cm, peso_kg):     
@@ -336,7 +366,7 @@ def get_my_medidas(usuario: Annotated[UsuarioResponse, Depends(get_current_usuar
     return db_result
 
 # New stripe implementation
-@usuario_router.post("/pedirNew/")
+@usuario_router.post("/pedir/")
 def put_order_new(
     pedido: PedidoCreate, 
     usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)], 
@@ -427,98 +457,6 @@ def put_order_new(
             "clientSecret": intent['client_secret']
         }
                 
-    except Exception as e:
-        raise HTTPException(
-            status_code = 403,
-            detail = str(e)
-        )
-        
-
-
-# Put an order
-@usuario_router.post("/pedir/")
-def put_order(
-    pedido: PedidoCreate, 
-    usuario: Annotated[UsuarioResponse, Depends(get_current_usuario)], 
-    db: Session = Depends(get_db)
-):
-    has_curcuma = pedido.curcuma != -1
-    
-    db_proteina: Proteina = db.query(Proteina).filter(Proteina.id_proteina == pedido.proteina).first()
-    
-    if not db_proteina:
-        raise HTTPException(
-            status_code = 404,
-            detail = f"Proteina with id {pedido.proteina} does not exist"
-        )
-        
-    db_saborizante: Saborizante = db.query(Saborizante).filter(Saborizante.id_saborizante == pedido.saborizante).first()
-    
-    if not db_saborizante:
-        raise HTTPException(
-            status_code = 404,
-            detail = f"Saborizante with id {pedido.saborizante} does not exist"
-        )
-    
-    db_curcuma: Curcuma = db.query(Curcuma).filter(Curcuma.id_curcuma == pedido.curcuma).first()
-    
-    if has_curcuma and not db_curcuma:
-        raise HTTPException(
-            status_code = 404,
-            detail = f"Curcuma with id {pedido.curcuma} does not exist"
-        )
-    
-    db_cantidades: Cantidades = db.query(Cantidades).filter(Cantidades.id_cantidades == usuario.cantidades).first()
-    
-    if not db_cantidades:
-        raise HTTPException(
-            status_code = 404,
-            detail = f"User {usuario.email} does not have cantidades"
-        )
-    
-    proteina_gr = db_cantidades.proteina_gr
-    
-    today = datetime.now(timezone('America/Mexico_City'))
-    
-    prehash = f"{usuario.email}:{pedido.proteina}:{pedido.saborizante}:{proteina_gr}:{today}"
-    
-    id_pedido = sha256(prehash.encode("utf-8")).hexdigest()
-    
-    db_pedido = Pedido(
-        id_pedido = id_pedido,
-        usuario_email = usuario.email,
-        proteina_id = pedido.proteina,
-        saborizante_id = pedido.saborizante,
-        proteina_gr = proteina_gr,
-        estado_canje = "no_canjeado"
-    )
-    
-    precio = db_proteina.precio
-    
-    if has_curcuma:
-        db_pedido.curcuma_gr = db_cantidades.curcuma_gr
-        db_pedido.curcuma_id = pedido.curcuma
-        precio += db_curcuma.precio
-    
-    print(id_pedido)
-
-    precio = precio * 100
-    try:
-        intent = stripe.PaymentIntent.create(
-            amount = int(precio),
-            currency='mxn',
-            metadata={"id_pedido": id_pedido}
-        )
-        
-        db.add(db_pedido)
-        db.commit()
-        db.refresh(db_pedido)
-        
-        return {
-            "id_pedido": id_pedido,
-            "clientSecret": intent['client_secret']
-        }
-        
     except Exception as e:
         raise HTTPException(
             status_code = 403,

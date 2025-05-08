@@ -394,3 +394,11 @@ class FalloCreate(BaseModel):
     tipo_fallo: int
     fec_hora: datetime
     descripcion: Optional[str] = None
+    
+class PaymentMethodsResponse(BaseModel):
+    customer_id: str
+    client_secret: str
+    ephemeral_key: str
+    
+    class Config:
+        from_attributes = True
