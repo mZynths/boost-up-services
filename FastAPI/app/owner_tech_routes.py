@@ -398,6 +398,7 @@ def restock_inv(
     *,
     quantity_field: str,
     expiration_field: str,
+    ingredient_field: str,
     now: datetime,
     prev_date_attr: str = "fec_prev_abasto",
     last_date_attr: str = "fec_ult_abasto",
@@ -408,6 +409,7 @@ def restock_inv(
     setattr(inv, prev_date_attr, old_dt.date())
 
     # set new values
+    setattr(inv, ingredient_field, getattr(req, ingredient_field))
     setattr(inv, quantity_field, getattr(req, quantity_field))
     setattr(inv, expiration_field, getattr(req, expiration_field))
     setattr(inv, last_date_attr, now)
@@ -426,6 +428,7 @@ async def restock_protein(
         inv, req,
         quantity_field="cantidad_gr",
         expiration_field="fec_caducidad",
+        ingredient_field="proteina",
         now=now
     )
 
@@ -441,7 +444,13 @@ async def restock_curcuma(
 ):
     inv = get_inventory_or_404(db, InvCurcuma, "id_inv_curcuma", req.id_inv_curcuma, machine.id_maquina)
     now = datetime.now(timezone("America/Mexico_City"))
-    restock_inv(inv, req, quantity_field="cantidad_gr", expiration_field="fec_caducidad", now=now)
+    restock_inv(
+        inv, req, 
+        quantity_field="cantidad_gr", 
+        expiration_field="fec_caducidad", 
+        ingredient_field="curcuma",
+        now=now
+    )
     db.commit()
     db.refresh(inv)
     return inv
@@ -460,6 +469,7 @@ async def restock_saborizante(
         inv, req,
         quantity_field="cantidad_ml",
         expiration_field="fec_caducidad",
+        ingredient_field="saborizante",
         now=now
     )
     db.commit()
