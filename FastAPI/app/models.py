@@ -525,3 +525,11 @@ class Fallo(Base):
     @property
     def tipo_fallo_nombre(self) -> str:
         return self.tipo_fallo_rel.nombre_fallo if self.tipo_fallo_rel else None
+
+class HistorialHumedad(Base):
+    __tablename__ = 'Historial_Humedad'
+
+    id_humedad = Column(Integer, primary_key=True, autoincrement=True)
+    maquina = Column(Integer, ForeignKey('Maquina.id_maquina'), nullable=False)
+    humedad = Column(Float, nullable=True)
+    fecha_hora = Column(DateTime, nullable=True)

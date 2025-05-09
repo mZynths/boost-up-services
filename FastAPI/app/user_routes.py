@@ -726,33 +726,23 @@ def sendForgotPasswordEmail(email_obj: EmailPost, db: Session = Depends(get_db))
         
     except Exception as e:
         print(f"Error sending email: {e}")
-    
-    
-@usuario_router.get(
-    "/puedeConsumir/{user_email}/",
-    response_model=bool,
-)
-def can_user_consume(
-    user_email: EmailStr,
-    db: Session = Depends(get_db),
+
+def hasPermissionToConsume(
+    user: Usuario,
+    db: Session
 ):
-    user = db.query(Usuario).filter(Usuario.email == user_email).first()
-    
-    if not user:
-        return False
-    
     pedidos_canjeados = (
         db.query(
             Pedido
         )
         .filter(
-            Pedido.usuario_email == user_email,
+            Pedido.usuario_email == user.email,
             Pedido.estado_canje == "canjeado"
         )
         .order_by(Pedido.fec_hora_canje)
         .all()
     )
-    
+
     if len(pedidos_canjeados) == 0:
         return True
     
@@ -773,3 +763,18 @@ def can_user_consume(
         return True
     else:
         return False
+    
+@usuario_router.get(
+    "/puedeConsumir/{user_email}/",
+    response_model=bool,
+)
+def can_user_consume(
+    user_email: EmailStr,
+    db: Session = Depends(get_db),
+):
+    user = db.query(Usuario).filter(Usuario.email == user_email).first()
+    
+    if not user:
+        return False
+    
+    return hasPermissionToConsume(user, db)

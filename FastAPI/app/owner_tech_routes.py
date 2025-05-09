@@ -27,6 +27,8 @@ from database import get_db
 
 db_dependency = Annotated[Session, Depends(get_db)]
 
+from user_routes import hasPermissionToConsume
+
 class OwnerAuth(OAuth2PasswordBearer):
     pass
 
@@ -317,6 +319,63 @@ def emailFailure(failure: Fallo, tech: Technician, machine: Maquina):
         
     except Exception as e:
         print(f"Error sending email: {e}")
+        
+def emailHumidity(humidity_obj: HistorialHumedad, tech: Technician, machine: Maquina):
+    email = tech.email
+    
+    msg = MIMEMultipart()
+    msg['From'] = NOREPLY_EMAIL
+    msg['To'] = email
+    msg['Subject'] = f"BoostUp - Alta humedad reportada en maquina #{machine.id_maquina}"
+    
+    html = (
+    f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="UTF-8">
+    <title>Alta humedad reportada</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px; text-align: center;">
+    <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+
+        <!-- Logo -->
+        <img src="https://boostup.life/logo.png" alt="Boost up logo"
+            style="max-width: 150px; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto;">
+
+        <h2>💦 Alta humedad reportada</h2>
+        <p>Hola { tech.name } ({ tech.username }),</p>
+        <p>Se ha registrado alta humedad en la máquina asignada a ti. A continuación los detalles:</p>
+
+        <div style="text-align: left; background-color: #f2f2f2; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <p><strong>Fecha y hora:</strong> {humidity_obj.fecha_hora.strftime("%Y-%m-%d %H:%M:%S")}</p>
+        <p><strong>Humedad:</strong> {humidity_obj.humedad}% </p>
+        <p><strong>Ubicación máquina:</strong> { machine.ubicacion or "— No disponible —" }</p>
+        </div>
+
+        <p style="margin-top: 30px;">Por favor, revisa este incidente a la brevedad.</p>
+
+        <p style="margin-top: 40px; font-size: 12px; color: #666;">
+            Tu dedicación y experiencia son el corazón de nuestra operación. ¡Gracias por ser un pilar fundamental de nuestro equipo!
+        </p>
+    </div>
+    </body>
+    </html>
+    """
+    )
+    
+    part = MIMEText(html, 'html')
+    msg.attach(part)
+    
+    try:
+        with smtplib.SMTP_SSL(SMTP_SERVER, 465) as smtp:
+            smtp.login(NOREPLY_EMAIL, NOREPLY_EMAIL_PASSWORD)
+            # Send the email
+            smtp.sendmail(NOREPLY_EMAIL, email, msg.as_string())
+        print("Email sent successfully!")
+        
+    except Exception as e:
+        print(f"Error sending email: {e}")
 
 @owner_tech_router.post("/maquina/fallos/", response_model=FalloResponse)
 def insert_machine_fail(
@@ -565,13 +624,13 @@ async def reporteMensual(
 def checkInventory(
     maquina: Maquina,
     pedido: Pedido,
-    db: Session = Depends(get_db)
+    db: Session
 ):
     # Buscar usuario y sus cantidades
-        user = db.query(Usuario).filter(Usuario.email == pedido.usuario).first()
+        user = db.query(Usuario).filter(Usuario.email == pedido.usuario_email).first()
         
         if not user:
-            return HTTPException(
+            raise HTTPException(
                 status_code=404,
                 detail=f"No se encontro el usuario ({pedido.usuario}) responsable del pedido: {pedido.id_pedido}"
             )
@@ -579,20 +638,22 @@ def checkInventory(
         cantidades = db.query(Cantidades).filter(Cantidades.id_cantidades == user.cantidades).first()
         
         if not cantidades:
-            return HTTPException(
+            raise HTTPException(
                 status_code=404,
                 detail=f"No se encontraron las cantidades para el usuario el usuario ({pedido.usuario})"
             )
 
-        proteina_gr = cantidades.proteina_gr
-        curcuma_gr = cantidades.curcuma_gr
+        proteina_gr = pedido.proteina_gr
+        curcuma_gr = pedido.curcuma_gr
         
-        # Buscar en los inventarios de la maquina, las materias del producto
+        if not pedido.curcuma_id: curcuma_gr = 0
+        
+    # Buscar en los inventarios de la maquina, las materias del producto
         invProteina = (
             db.query(InvProteina)
             .filter(
                 InvProteina.maquina == maquina.id_maquina,
-                Inv_Proteina.proteina == pedido.proteina_id
+                InvProteina.proteina == pedido.proteina_id
             )
             .first()
         )
@@ -609,53 +670,64 @@ def checkInventory(
         invCurcuma = (
             db.query(InvCurcuma)
             .filter(
-                InvCurcuma.maquina == maquina.id_maquina
+                InvCurcuma.maquina == maquina.id_maquina,
+                InvCurcuma.curcuma == pedido.curcuma_id
             ).first()
         )
         
         if not invSaborizante:
-            return HTTPException(
+            raise HTTPException(
                 status_code=404,
                 detail=f"No se encontro inventario de saborizante para maquina con ID: {maquina.id_maquina}"
             )
             
         if not invProteina:
-            return HTTPException(
+            raise HTTPException(
                 status_code=404,
                 detail=f"No se encontro inventario de proteina para maquina con ID: {maquina.id_maquina}"
             )
         
-        if not invCurcuma:
-            return HTTPException(
+        if not invCurcuma and pedido.curcuma_id:
+            raise HTTPException(
                 status_code=404,
-                detail=f"No se encontro inventario de proteina para maquina con ID: {maquina.id_maquina}"
+                detail=f"No se encontro inventario de curcuma para maquina con ID: {maquina.id_maquina}"
             )
 
-        saborizante = db.query(Saborizante).filter(Saborizante.id == pedido.saborizante_id).first()
+        saborizante = db.query(Saborizante).filter(Saborizante.id_saborizante == pedido.saborizante_id).first()
         sabor_ml = saborizante.porcion
 
     # Validar caducidades
-        today = datetime.now(timezone('America/Mexico_City'))
-        
-        if invProteina.fec_caducidad < today:
+        tz = timezone('America/Mexico_City')
+        today = datetime.now(tz).date()
+
+        if today > invProteina.fec_caducidad:
+            print("Razon: if today > invProteina.fec_caducidad")
             return False
-        
-        if invSaborizante.fec_caducidad < today:
+
+        if today > invSaborizante.fec_caducidad:
+            print("Razon: if today > invSaborizante.fec_caducidad")
             return False
-            
-        if invCurcuma.fec_caducidad < today:
+
+        if pedido.curcuma_id and today > invCurcuma.fec_caducidad:
+            print("Razon: if pedido.curcuma_id and today > invCurcuma.fec_caducidad")
             return False
             
     # Validar cantidades
-        if proteina_gr < invProteina.cantidad_gr + PROTEIN_EXTRA_MARGIN:
+        if proteina_gr + PROTEIN_EXTRA_MARGIN > invProteina.cantidad_gr:
+            print("Razon: if proteina_gr > invProteina.cantidad_gr + PROTEIN_EXTRA_MARGIN")
             return False
             
-        if sabor_ml < invSaborizante.cantidad_ml + FLAVOR_EXTRA_MARGIN:
+        if sabor_ml + FLAVOR_EXTRA_MARGIN > invSaborizante.cantidad_ml:
+            print("Razon: if sabor_ml > invSaborizante.cantidad_ml + FLAVOR_EXTRA_MARGIN")
             return False
         
         if pedido.curcuma_id:
-            if curcuma_gr < invCurcuma.cantidad_gr + TUMERIC_EXTRA_MARGIN:
+            if curcuma_gr + TUMERIC_EXTRA_MARGIN > invCurcuma.cantidad_gr:
+                print("Razon: if curcuma_gr > invCurcuma.cantidad_gr + TUMERIC_EXTRA_MARGIN")
                 return False
+    
+    # Si todos los checks pasaron, entonces pasa la prueba de inventario
+        return True
 
 @machine_router.get(
     "/inventario/{machine_id}/disponible/{pedido_id}",
@@ -671,7 +743,7 @@ def check_machine_inventory(
     machine = db.query(Maquina).filter(Maquina.id_maquina == machine_id).first()
     
     if not machine:
-        return HTTPException(
+        raise HTTPException(
             status_code=404,
             detail=f"No se encontro maquina con ID: {machine_id}"
         )
@@ -679,9 +751,153 @@ def check_machine_inventory(
     pedido = db.query(Pedido).filter(Pedido.id_pedido == pedido_id).first()
     
     if not pedido:
-        return HTTPException(
+        raise HTTPException(
             status_code=404,
             detail=f"No se encontro maquina con ID: {pedido_id}"
         )
+        
+    response = checkInventory(machine, pedido, db)
 
-    return checkInventory(machine, pedido_id)
+    return response
+
+@machine_router.post(
+    "/canjearPedido/",
+    summary="Determina canjeabilidad y ejecuta si aplica.",
+    response_model=PedidoResponse
+)
+def redeem(
+    req: RedeemRequest,
+    db: Session = Depends(get_db),
+):
+    # Consigue la maquina
+        maquina = db.query(Maquina).filter(Maquina.id_maquina == req.machine_id).first()
+        
+        if not maquina:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No se encontro maquina con ID: {req.machine_id}"
+            )
+    
+    # Inserta tempranamente la humedad (para aprovechar la ocasion)
+        today = datetime.now(timezone('America/Mexico_City'))
+
+        db_humedad = HistorialHumedad(
+            maquina = req.machine_id,
+            humedad = req.current_humidity,
+            fecha_hora = today,
+        )
+        
+        db.add(db_humedad)
+        db.commit()
+        db.refresh(db_humedad)
+        
+    # Revisa si la humedad recibida es aceptable (envia emails al tecnico si no)       
+        if (req.current_humidity > MAX_ACCEPTABLE_HUMIDITY):
+            tech = db.query(Technician).filter(Technician.machine == req.machine_id).first()
+            
+            emailHumidity(db_humedad, tech, maquina)
+            
+            raise HTTPException(
+                status_code=403,
+                detail=f"La maquina {req.machine_id} no paso prueba de humedad"
+            )
+    
+    # Revisa si el pedido esta comprado
+        compra = (
+            db.query(Compra)
+            .options(
+                joinedload(Compra.pedido_rel)
+            )
+            .filter(Compra.pedido_id == req.order_id)
+            .first()
+        )
+        
+        if not compra:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No se encontro pedido comprado con ID: {req.order_id}"
+            )
+            
+        pedido = compra.pedido_rel
+        
+    # Revisa si el pedido esta no canjeado
+        if pedido.estado_canje != "no_canjeado":
+            raise HTTPException(
+                status_code=403,
+                detail=f"El pedido {req.order_id} esta canjeado"
+            )
+    
+    # Revisa si el usuario puede consumir
+        user = db.query(Usuario).filter(Usuario.email == pedido.usuario_email).first()
+        
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No se encontro al usuario {pedido.usuario_email} responsable del pedido"
+            )
+    
+        if not hasPermissionToConsume(user, db):
+            raise HTTPException(
+                status_code=403,
+                detail=f"El usuario {pedido.usuario_email} esta en cooldown"
+            )
+    
+    # Revisa si la maquina puede preparar el pedido       
+        if not checkInventory(maquina, pedido, db):
+            raise HTTPException(
+                status_code=403,
+                detail=f"La maquina {req.machine_id} no paso prueba de inventario"
+            )
+        
+    # Canjear pedido   
+        pedido.estado_canje = "canjeado"
+        pedido.fec_hora_canje = today
+        pedido.maquina_canje_id = req.machine_id
+        
+        db.commit()
+        db.refresh(pedido)
+        
+    # Restar cantidad consumida a los inventarios
+        invProteina = (
+            db.query(InvProteina)
+            .filter(
+                InvProteina.maquina == maquina.id_maquina,
+                InvProteina.proteina == pedido.proteina_id
+            )
+            .first()
+        )
+        
+        invSaborizante = (
+            db.query(InvSaborizante)
+            .filter(
+                InvSaborizante.maquina == maquina.id_maquina,
+                InvSaborizante.saborizante == pedido.saborizante_id,
+                
+            ).first()
+        )
+        
+        invCurcuma = (
+            db.query(InvCurcuma)
+            .filter(
+                InvCurcuma.maquina == maquina.id_maquina,
+                InvCurcuma.curcuma == pedido.curcuma_id
+            ).first()
+        )
+        
+        saborizante = db.query(Saborizante).filter(Saborizante.id_saborizante == pedido.saborizante_id).first()
+        
+        proteina_gr = pedido.proteina_gr
+        curcuma_gr = pedido.curcuma_gr
+        
+        sabor_ml = saborizante.porcion
+        
+        invProteina.cantidad_gr -= proteina_gr
+        invCurcuma.cantidad_gr -= curcuma_gr
+        invSaborizante.cantidad_ml -= sabor_ml
+        
+        db.commit()
+        db.refresh(invProteina)
+        db.refresh(invCurcuma)
+        db.refresh(invSaborizante)
+        
+        return pedido
