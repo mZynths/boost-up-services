@@ -728,4 +728,48 @@ def sendForgotPasswordEmail(email_obj: EmailPost, db: Session = Depends(get_db))
         print(f"Error sending email: {e}")
     
     
+@usuario_router.get(
+    "/puedeConsumir/{user_email}/",
+    response_model=bool,
+)
+def can_user_consume(
+    user_email: EmailStr,
+    db: Session = Depends(get_db),
+):
+    user = db.query(Usuario).filter(Usuario.email == user_email).first()
     
+    if not user:
+        return False
+    
+    pedidos_canjeados = (
+        db.query(
+            Pedido
+        )
+        .filter(
+            Pedido.usuario_email == user_email,
+            Pedido.estado_canje == "canjeado"
+        )
+        .order_by(Pedido.fec_hora_canje)
+        .all()
+    )
+    
+    if len(pedidos_canjeados) == 0:
+        return True
+    
+    pedidos_canjeados = sorted(pedidos_canjeados, key=lambda x: x.fec_hora_canje, reverse=True)
+    
+    tz = timezone('America/Mexico_City')
+    now = datetime.now(tz)
+
+    # Get last redemption timestamp (assumed naive)
+    ultimo_canje = pedidos_canjeados[0]
+    fec_hora_canje_naive = ultimo_canje.fec_hora_canje
+
+    # Localize to the correct timezone
+    fec_hora_canje = tz.localize(fec_hora_canje_naive)
+
+    # Compare with current time
+    if now - fec_hora_canje >= timedelta(hours=REDEEM_COOLDOWN_HR):
+        return True
+    else:
+        return False

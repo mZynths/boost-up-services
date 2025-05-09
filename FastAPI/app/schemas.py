@@ -402,3 +402,8 @@ class PaymentMethodsResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+class RedeemRequest(BaseModel):
+    machine_id: int
+    order_id: str
+    current_humidity: int

@@ -562,71 +562,126 @@ async def reporteMensual(
     
     return response
 
+def checkInventory(
+    maquina: Maquina,
+    pedido: Pedido,
+    db: Session = Depends(get_db)
+):
+    # Buscar usuario y sus cantidades
+        user = db.query(Usuario).filter(Usuario.email == pedido.usuario).first()
+        
+        if not user:
+            return HTTPException(
+                status_code=404,
+                detail=f"No se encontro el usuario ({pedido.usuario}) responsable del pedido: {pedido.id_pedido}"
+            )
+        
+        cantidades = db.query(Cantidades).filter(Cantidades.id_cantidades == user.cantidades).first()
+        
+        if not cantidades:
+            return HTTPException(
+                status_code=404,
+                detail=f"No se encontraron las cantidades para el usuario el usuario ({pedido.usuario})"
+            )
 
+        proteina_gr = cantidades.proteina_gr
+        curcuma_gr = cantidades.curcuma_gr
+        
+        # Buscar en los inventarios de la maquina, las materias del producto
+        invProteina = (
+            db.query(InvProteina)
+            .filter(
+                InvProteina.maquina == maquina.id_maquina,
+                Inv_Proteina.proteina == pedido.proteina_id
+            )
+            .first()
+        )
+        
+        invSaborizante = (
+            db.query(InvSaborizante)
+            .filter(
+                InvSaborizante.maquina == maquina.id_maquina,
+                InvSaborizante.saborizante == pedido.saborizante_id,
+                
+            ).first()
+        )
+        
+        invCurcuma = (
+            db.query(InvCurcuma)
+            .filter(
+                InvCurcuma.maquina == maquina.id_maquina
+            ).first()
+        )
+        
+        if not invSaborizante:
+            return HTTPException(
+                status_code=404,
+                detail=f"No se encontro inventario de saborizante para maquina con ID: {maquina.id_maquina}"
+            )
+            
+        if not invProteina:
+            return HTTPException(
+                status_code=404,
+                detail=f"No se encontro inventario de proteina para maquina con ID: {maquina.id_maquina}"
+            )
+        
+        if not invCurcuma:
+            return HTTPException(
+                status_code=404,
+                detail=f"No se encontro inventario de proteina para maquina con ID: {maquina.id_maquina}"
+            )
+
+        saborizante = db.query(Saborizante).filter(Saborizante.id == pedido.saborizante_id).first()
+        sabor_ml = saborizante.porcion
+
+    # Validar caducidades
+        today = datetime.now(timezone('America/Mexico_City'))
+        
+        if invProteina.fec_caducidad < today:
+            return False
+        
+        if invSaborizante.fec_caducidad < today:
+            return False
+            
+        if invCurcuma.fec_caducidad < today:
+            return False
+            
+    # Validar cantidades
+        if proteina_gr < invProteina.cantidad_gr + PROTEIN_EXTRA_MARGIN:
+            return False
+            
+        if sabor_ml < invSaborizante.cantidad_ml + FLAVOR_EXTRA_MARGIN:
+            return False
+        
+        if pedido.curcuma_id:
+            if curcuma_gr < invCurcuma.cantidad_gr + TUMERIC_EXTRA_MARGIN:
+                return False
 
 @machine_router.get(
     "/inventario/{machine_id}/disponible/{pedido_id}",
     response_model=bool,
     summary="¿Hay inventario suficiente en la máquina para preparar un pedido?"
 )
-def check_inventory(
+def check_machine_inventory(
     machine_id: int,
     pedido_id: str,
     db: Session = Depends(get_db),
-):
-    FLAVOR_ML = {
-        1: 15,
-        2: 20,
-        3: 25,
-    }
+):  
+    # Buscar maquina
+    machine = db.query(Maquina).filter(Maquina.id_maquina == machine_id).first()
     
-    # 1) Cargar el pedido
+    if not machine:
+        return HTTPException(
+            status_code=404,
+            detail=f"No se encontro maquina con ID: {machine_id}"
+        )
+
     pedido = db.query(Pedido).filter(Pedido.id_pedido == pedido_id).first()
+    
     if not pedido:
-        raise HTTPException(status_code=404, detail="Pedido no encontrado")
-
-    # 2) Verificar proteína
-    inv_prot = (
-        db.query(InvProteina)
-          .filter(
-              InvProteina.maquina == machine_id,
-              InvProteina.proteina == pedido.proteina_id
-          )
-          .first()
-    )
-    if not inv_prot or inv_prot.cantidad_gr < pedido.proteina_gr:
-        return False
-
-    # 3) Verificar cúrcuma (si aplica)
-    if pedido.curcuma_id is not None and pedido.curcuma_gr is not None:
-        inv_cur = (
-            db.query(InvCurcuma)
-              .filter(
-                  InvCurcuma.maquina == machine_id,
-                  InvCurcuma.curcuma == pedido.curcuma_id
-              )
-              .first()
+        return HTTPException(
+            status_code=404,
+            detail=f"No se encontro maquina con ID: {pedido_id}"
         )
-        if not inv_cur or inv_cur.cantidad_gr < pedido.curcuma_gr:
-            return False
 
-    # 4) Verificar saborizante usando el ml hard‑codeado
-    needed_ml = FLAVOR_ML.get(pedido.saborizante_id)
-    if needed_ml is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Saborizante desconocido: {pedido.saborizante_id}"
-        )
-    inv_sab = (
-        db.query(InvSaborizante)
-          .filter(
-              InvSaborizante.maquina == machine_id,
-              InvSaborizante.saborizante == pedido.saborizante_id
-          )
-          .first()
-    )
-    if not inv_sab or inv_sab.cantidad_ml < needed_ml:
-        return False
-
-    # 5) Si llegamos aquí, ¡hay stock suficiente!
-    return True
+    return checkInventory(machine, pedido_id)
