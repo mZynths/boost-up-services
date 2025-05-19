@@ -894,10 +894,302 @@ def checkInventoryPass(maquina: Maquina, pedido: Pedido, db: Session):
             detail=f"La maquina {maquina.id_maquina} no paso prueba de inventario"
         )
 
+def predictProtein(pedido: Pedido, maquina: Maquina, db: Session):
+    """
+    Predice fec_limite_abasto y fec_prev_abasto para un InvProteina,
+    clamping contra la fecha de caducidad si es necesario.
+    """
+
+    # 1) Obtener InvProteina para esta máquina
+    inv_proteina: InvProteina = (
+        db.query(InvProteina)
+        .filter(
+            InvProteina.maquina == maquina.id_maquina,
+            InvProteina.proteina == pedido.proteina_id,
+        )
+        .first()
+    )
+
+    # 2) Obtener “ahora” en zona CDMX y volverlo naive (sin tzinfo)
+    now_tz_aware = datetime.now(timezone("America/Mexico_City"))
+    now = now_tz_aware.replace(tzinfo=None)
+
+    # 3) Validar que fec_ult_abasto exista y haya pasado tiempo
+    fec_ult = inv_proteina.fec_ult_abasto  # DateTime del último reabasto
+    if fec_ult is None:
+        print("InvProteina.fec_ult_abasto es NULL; no se puede predecir sin fecha de última recarga.")
+        return  # o simplemente salir de la función
+
+    elapsed_seconds = (now - fec_ult).total_seconds()
+    if elapsed_seconds <= 0:
+        print("La fecha de última recarga (fec_ult_abasto) es igual o posterior a ahora; no hay intervalo para calcular.")
+        return  # o simplemente salir de la función
+
+    # 4) Sumar todos los consumos de proteína (proteina_gr) desde fec_ult_abasto hasta ahora
+    consumos_proteina = (
+        db.query(Pedido)
+        .filter(
+            Pedido.maquina_canje_id == maquina.id_maquina,
+            Pedido.proteina_id == pedido.proteina_id,
+            Pedido.fec_hora_canje >= fec_ult,
+            Pedido.fec_hora_canje <= now,
+        )
+        .all()
+    )
+    
+    total_consumido_gr = sum(p.proteina_gr for p in consumos_proteina)
+
+    # 5) Calcular tasa: gramos por día
+    elapsed_days = elapsed_seconds / 86400  # 86400 segundos = 1 día
+    if elapsed_days <= 0:
+        print("No hubo días transcurridos; no se puede calcular la tasa.")
+        return
+
+    tasa_gr_por_dia = total_consumido_gr / elapsed_days
+    if tasa_gr_por_dia <= 0:
+        print("La tasa de consumo es cero o negativa; no se puede predecir.")
+        return
+
+    # 6) Calcular cuántos días faltan con la cantidad actual en inv_proteina.cantidad_gr
+    if inv_proteina.cantidad_gr <= 0:
+        print("No queda proteína en inventario; no se puede predecir fecha de límite.")
+        return
+
+    dias_restantes = inv_proteina.cantidad_gr / tasa_gr_por_dia
+
+    # 7) Proyectar fecha límite inicialmente
+    fecha_limite_dt = now + timedelta(days=dias_restantes)
+
+    # ===== Aquí incorporamos la comparación con la fecha de caducidad =====
+    # inv_proteina.fec_caducidad es un Date (sin hora). 
+    # Si la predicción excede ese día, clampa a la caducidad.
+    if inv_proteina.fec_caducidad:
+        # Convertimos la caducidad a datetime a las 23:59:59 para que incluya todo el día de caducidad:
+        exp_datetime = datetime.combine(
+            inv_proteina.fec_caducidad, 
+            datetime.max.time()
+        )
+        
+        if fecha_limite_dt > exp_datetime:
+            # Si la predicción cae más tarde que la caducidad, forzamos fecha_limite_dt = exp_datetime
+            fecha_limite_dt = exp_datetime
+
+    # 8) Calcular fecha previa (10 días antes de la fecha límite ajustada)
+    fecha_prev_dt = fecha_limite_dt - timedelta(days = DAYS_FOR_PREVISORY_RESTOCK)
+
+    # 9) Actualizar InvProteina y guardar
+    inv_proteina.fec_limite_abasto = fecha_limite_dt.date()  # es Column(Date)
+    inv_proteina.fec_prev_abasto = fecha_prev_dt            # es Column(DateTime)
+    db.add(inv_proteina)
+    db.commit()
+    db.refresh(inv_proteina)
+
+def predictSaborizante(pedido: Pedido, maquina: Maquina, db: Session):
+    """
+    Predice fec_limite_abasto y fec_prev_abasto para un InvSaborizante,
+    clamping contra la fecha de caducidad si es necesario.
+    """
+
+    # 1) Obtener InvSaborizante para esta máquina + saborizante
+    inv_sabor: InvSaborizante = (
+        db.query(InvSaborizante)
+        .filter(
+            InvSaborizante.maquina == maquina.id_maquina,
+            InvSaborizante.saborizante == pedido.saborizante_id,
+        )
+        .first()
+    )
+    if not inv_sabor:
+        print(f"No existe InvSaborizante para máquina={maquina.id_maquina} y saborizante={pedido.saborizante_id}")
+        return
+
+    # 2) Obtener el objeto Saborizante para saber la porción en ml
+    sabor_obj = (
+        db.query(Saborizante)
+        .filter(Saborizante.id_saborizante == pedido.saborizante_id)
+        .first()
+    )
+    if not sabor_obj:
+        print(f"No existe Saborizante con ID={pedido.saborizante_id}")
+        return
+
+    porcion_ml = sabor_obj.porcion
+    if porcion_ml is None or porcion_ml <= 0:
+        print(f"La porción del saborizante {pedido.saborizante_id} no es válida: {porcion_ml}")
+        return
+
+    # 3) Obtener “ahora” en zona CDMX y volverlo naive (sin tzinfo)
+    now_tz_aware = datetime.now(timezone("America/Mexico_City"))
+    now = now_tz_aware.replace(tzinfo=None)
+
+
+    # 4) Validar que fec_ult_abasto exista y haya pasado tiempo
+    fec_ult = inv_sabor.fec_ult_abasto  # DateTime del último abasto
+    if fec_ult is None:
+        print("InvSaborizante.fec_ult_abasto es NULL; no se puede predecir sin última recarga.")
+        return
+
+    elapsed_seconds = (now - fec_ult).total_seconds()
+    if elapsed_seconds <= 0:
+        print("La fecha de última recarga (fec_ult_abasto) es igual o posterior a ahora; no hay intervalo para calcular.")
+        return
+
+    # 5) Contar cuántos pedidos de este saborizante hubo desde fec_ult hasta ahora
+    pedidos_sabor = (
+        db.query(Pedido)
+        .filter(
+            Pedido.maquina_canje_id == maquina.id_maquina,
+            Pedido.saborizante_id == pedido.saborizante_id,
+            Pedido.fec_hora_canje >= fec_ult,
+            Pedido.fec_hora_canje <= now,
+        )
+        .all()
+    )
+    num_pedidos = len(pedidos_sabor)
+    total_consumido_ml = num_pedidos * porcion_ml
+
+    if total_consumido_ml <= 0:
+        print("No se han registrado consumos de saborizante desde la última recarga.")
+        return
+
+    # 6) Calcular tasa de consumo en ml/día
+    elapsed_days = elapsed_seconds / 86400
+    if elapsed_days <= 0:
+        print("No hubo días transcurridos; no se puede calcular la tasa.")
+        return
+
+    tasa_ml_por_dia = total_consumido_ml / elapsed_days
+    if tasa_ml_por_dia <= 0:
+        print("La tasa de consumo calculada es cero o negativa; no se puede predecir.")
+        return
+
+    # 7) Verificar que quede cantidad en inventario
+    if inv_sabor.cantidad_ml <= 0:
+        print("No queda saborizante en inventario; no se puede predecir fecha de límite.")
+        return
+
+    dias_restantes = inv_sabor.cantidad_ml / tasa_ml_por_dia
+
+    # 8) Proyectar fecha límite inicialmente
+    fecha_limite_dt = now + timedelta(days=dias_restantes)
+
+    # 9) Comparar contra la fecha de caducidad
+    if inv_sabor.fec_caducidad:
+        # Convertir fec_caducidad (Date) a datetime al final del día en CDMX
+        exp_datetime = datetime.combine(
+            inv_sabor.fec_caducidad, 
+            datetime.max.time()
+        )
+            
+        if fecha_limite_dt > exp_datetime:
+            fecha_limite_dt = exp_datetime
+
+    # 10) Calcular fecha previa (10 días antes de la fecha límite ajustada)
+    fecha_prev_dt = fecha_limite_dt - timedelta(days = DAYS_FOR_PREVISORY_RESTOCK)
+
+    # 11) Actualizar InvSaborizante y guardar
+    inv_sabor.fec_limite_abasto = fecha_limite_dt.date()  # Column(Date)
+    inv_sabor.fec_prev_abasto = fecha_prev_dt             # Column(DateTime)
+    db.add(inv_sabor)
+    db.commit()
+    db.refresh(inv_sabor)
+
+def predictCurcuma(pedido: Pedido, maquina: Maquina, db: Session):
+    """
+    Predice fec_limite_abasto y fec_prev_abasto para un InvCurcuma,
+    clamping contra la fecha de caducidad si es necesario.
+    """
+
+    # 1) Obtener InvCurcuma para esta máquina + curcuma
+    inv_curcuma: InvCurcuma = (
+        db.query(InvCurcuma)
+        .filter(
+            InvCurcuma.maquina == maquina.id_maquina,
+            InvCurcuma.curcuma == pedido.curcuma_id,
+        )
+        .first()
+    )
+    if not inv_curcuma:
+        print(f"No existe InvCurcuma para máquina={maquina.id_maquina} y curcuma={pedido.curcuma_id}")
+        return
+
+    # 2) Obtener “ahora” en zona CDMX y volverlo naive (sin tzinfo)
+    now_tz_aware = datetime.now(timezone("America/Mexico_City"))
+    now = now_tz_aware.replace(tzinfo=None)
+
+    # 3) Validar que fec_ult_abasto exista y haya pasado tiempo
+    fec_ult = inv_curcuma.fec_ult_abasto  # DateTime del último abasto
+    if fec_ult is None:
+        print("InvCurcuma.fec_ult_abasto es NULL; no se puede predecir sin última recarga.")
+        return
+
+    elapsed_seconds = (now - fec_ult).total_seconds()
+    if elapsed_seconds <= 0:
+        print("La fecha de última recarga (fec_ult_abasto) es igual o posterior a ahora; no hay intervalo para calcular.")
+        return
+
+    # 4) Sumar todos los consumos de curcuma (curcuma_gr) desde fec_ult_abasto hasta ahora
+    consumos_curcuma = (
+        db.query(Pedido)
+        .filter(
+            Pedido.maquina_canje_id == maquina.id_maquina,
+            Pedido.curcuma_id == pedido.curcuma_id,
+            Pedido.fec_hora_canje >= fec_ult,
+            Pedido.fec_hora_canje <= now,
+        )
+        .all()
+    )
+    total_consumido_gr = sum(p.curcuma_gr for p in consumos_curcuma)
+    if total_consumido_gr <= 0:
+        print("No se han registrado consumos de curcuma desde la última recarga.")
+        return
+
+    # 5) Calcular tasa: gramos por día
+    elapsed_days = elapsed_seconds / 86400  # 86400 segundos = 1 día
+    if elapsed_days <= 0:
+        print("No hubo días transcurridos; no se puede calcular la tasa.")
+        return
+
+    tasa_gr_por_dia = total_consumido_gr / elapsed_days
+    if tasa_gr_por_dia <= 0:
+        print("La tasa de consumo calculada es cero o negativa; no se puede predecir.")
+        return
+
+    # 6) Verificar que quede cantidad en inventario
+    if inv_curcuma.cantidad_gr <= 0:
+        print("No queda curcuma en inventario; no se puede predecir fecha de límite.")
+        return
+
+    dias_restantes = inv_curcuma.cantidad_gr / tasa_gr_por_dia
+
+    # 7) Proyectar fecha límite inicialmente
+    fecha_limite_dt = now + timedelta(days=dias_restantes)
+
+    # 8) Comparar contra la fecha de caducidad
+    if inv_curcuma.fec_caducidad:
+        # Convertir fec_caducidad (Date) a datetime al final del día en CDMX
+        exp_datetime = datetime.combine(
+            inv_curcuma.fec_caducidad, 
+            datetime.max.time()
+        )
+        
+        if fecha_limite_dt > exp_datetime:
+            fecha_limite_dt = exp_datetime
+
+    # 9) Calcular fecha previa (10 días antes de la fecha límite ajustada)
+    fecha_prev_dt = fecha_limite_dt - timedelta(days = DAYS_FOR_PREVISORY_RESTOCK)
+
+    # 10) Actualizar InvCurcuma y guardar
+    inv_curcuma.fec_limite_abasto = fecha_limite_dt.date()  # Column(Date)
+    inv_curcuma.fec_prev_abasto   = fecha_prev_dt           # Column(DateTime)
+    db.add(inv_curcuma)
+    db.commit()
+    db.refresh(inv_curcuma)
+
 @machine_router.post(
     "/canjearPedido/",
-    summary="Determina canjeabilidad y ejecuta si aplica."
-    
+    summary="Determina canjeabilidad y ejecuta si aplica.",
+    # response_model=bool
 )
 def redeem_endpoint(
     req: RedeemRequest,
@@ -905,41 +1197,39 @@ def redeem_endpoint(
     response_model = bool
 ):
     # Consigue la maquina
-        maquina = db.query(Maquina).filter(Maquina.id_maquina == req.machine_id).first()
-        
-        if not maquina:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No se encontro maquina con ID: {req.machine_id}"
-            )
+    maquina = db.query(Maquina).filter(Maquina.id_maquina == req.machine_id).first()
+    
+    if not maquina:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No se encontro maquina con ID: {req.machine_id}"
+        )
     
     # Inserta la humedad y Revisa si la humedad recibida es aceptable (envia emails al tecnico si no)
-        insertHumidityAndEmail(maquina, req.current_humidity, db)
+    insertHumidityAndEmail(maquina, req.current_humidity, db)
         
     # Revisa si el pedido esta comprado y consigue su usuario
-        pedido = checkIfPedidoIsBought(req.order_id, db)
-        
-        user = db.query(Usuario).filter(Usuario.email == pedido.usuario_email).first()
+    pedido = checkIfPedidoIsBought(req.order_id, db)
     
-        if not user:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No se encontro al usuario {pedido.usuario_email} responsable del pedido"
-            )
+    user = db.query(Usuario).filter(Usuario.email == pedido.usuario_email).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No se encontro al usuario {pedido.usuario_email} responsable del pedido"
+        )
         
-    # Revisa si el pedido esta no canjeado
-        checkIfPedidoIsRedeemed(pedido)
+    checkIfPedidoIsRedeemed(pedido) # Revisa si el pedido esta no canjeado
+    checkUserInCooldown(user, db) # Revisa si el usuario puede consumir   
+    checkInventoryPass(maquina, pedido, db) # Revisa si la maquina puede preparar el pedido       
+    redeem(req.machine_id, pedido, db) # Canjear pedido
+    consumeInventories(pedido, maquina, db) # Restar cantidad consumida a los inventarios
     
-    # Revisa si el usuario puede consumir   
-        checkUserInCooldown(user, db)
+    # Proyectar consumos para conseguir fechas de reabastecimiento
+    predictProtein(pedido, maquina, db)
+    predictSaborizante(pedido, maquina, db)
     
-    # Revisa si la maquina puede preparar el pedido       
-        checkInventoryPass(maquina, pedido, db)
-        
-    # Canjear pedido
-        redeem(req.machine_id, pedido, db)
-        
-    # Restar cantidad consumida a los inventarios
-        consumeInventories(pedido, maquina, db)
-        
-        return True
+    if pedido.curcuma_id:    
+        predictCurcuma(pedido, maquina, db)
+    
+    return True
