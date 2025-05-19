@@ -235,6 +235,42 @@ async def getInventory(user: Annotated[CurrentTechOrOwner, Depends(get_current_t
 
     return inventory
 
+# Get restock dates
+@owner_tech_router.get("/fechasReabastecimiento/")
+async def getRestockDates(user: Annotated[CurrentTechOrOwner, Depends(get_current_tech_or_owner)], db: Session = Depends(get_db)):
+    machine = db.query(Maquina).filter(Maquina.id_maquina == user.machine).first()
+    
+    if not machine:
+        raise HTTPException(status_code=404, detail="No se encontro la maquina")
+
+    # Fetch inventory items linked to that machine
+    invProteina = db.query(InvProteina).filter(InvProteina.maquina == machine.id_maquina).all()
+    invSaborizante = db.query(InvSaborizante).filter(InvSaborizante.maquina == machine.id_maquina).all()
+    invCurcuma = db.query(InvCurcuma).filter(InvCurcuma.maquina == machine.id_maquina).all()
+
+    fechas_limite = []
+    
+    for proteina in invProteina:
+        fechas_limite.append(proteina.fec_limite_abasto)
+
+    for saborizante in invSaborizante:
+        fechas_limite.append(saborizante.fec_limite_abasto)  
+              
+    for curcuma in invCurcuma:
+        fechas_limite.append(curcuma.fec_limite_abasto)        
+
+    fechas_limite.sort()
+    primera_fecha_limite = fechas_limite[0]
+    fecha_prev_dt = primera_fecha_limite - timedelta(days = DAYS_FOR_PREVISORY_RESTOCK)
+    
+    response =  {
+        "fec_limite_abasto": primera_fecha_limite,
+        "fec_prev_abasto": fecha_prev_dt,
+    }
+    
+    return response
+    
+
 @owner_tech_router.get("/tipos-fallo/", response_model=list[TipoFalloResponse])
 def get_failure_types(
     user: Annotated[CurrentTechOrOwner, Depends(get_current_tech_or_owner)],
