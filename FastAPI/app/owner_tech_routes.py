@@ -261,12 +261,25 @@ def get_machine_fails(
    
     return failures
 
-def emailFailure(failure: Fallo, tech: Technician, machine: Maquina):
-    email = tech.email
-    
+def emailFailure(failure: Fallo, techs: list[Technician], machine: Maquina):
+    # List of email addresses
+    emails = [tech.email for tech in techs]
+    to_field = ", ".join(emails)
+
+    # Greeting names: "Juan (jlopez), María (marias)"
+    greeting_names = ", ".join([f"{tech.name} ({tech.username})" for tech in techs])
+
+    # Determine singular or plural phrasing
+    plural = len(techs) > 1
+    saludo = "Hola a todos" if plural else "Hola"
+    pronoun = "ustedes" if plural else "ti"
+    verb = "revisen" if plural else "revisa"
+    mensaje_equipo = "Su dedicación y experiencia son" if plural else "Tu dedicación y experiencia es"
+    mensaje_final = "¡Gracias por ser pilares fundamentales de nuestro equipo!" if plural else "¡Gracias por ser un pilar fundamental de nuestro equipo!"
+
     msg = MIMEMultipart()
     msg['From'] = NOREPLY_EMAIL
-    msg['To'] = email
+    msg['To'] = to_field
     msg['Subject'] = f"BoostUp - Fallo reportado #{failure.id_fallo}"
     
     html = (
@@ -285,40 +298,40 @@ def emailFailure(failure: Fallo, tech: Technician, machine: Maquina):
             style="max-width: 150px; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto;">
 
         <h2>🚨 Nuevo fallo registrado</h2>
-        <p>Hola { tech.name } ({ tech.username }),</p>
-        <p>Se ha registrado un nuevo fallo en la máquina asignada a ti. A continuación los detalles:</p>
+        <p>{saludo} {greeting_names},</p>
+        <p>Se ha registrado un nuevo fallo en la máquina asignada a {pronoun}. A continuación los detalles:</p>
 
         <div style="text-align: left; background-color: #f2f2f2; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <p><strong>ID de Fallo:</strong> {failure.id_fallo}</p>
         <p><strong>Fecha y hora:</strong> {failure.fec_hora.strftime("%Y-%m-%d %H:%M:%S")}</p>
         <p><strong>Tipo de fallo:</strong> {failure.tipo_fallo_nombre} (ID {failure.tipo_fallo})</p>
         <p><strong>Descripción:</strong> {failure.descripcion or "— Sin descripción —"}</p>
-        <p><strong>Ubicación máquina:</strong> { machine.ubicacion or "— No disponible —" }</p>
+        <p><strong>Ubicación máquina:</strong> {machine.ubicacion or "— No disponible —"}</p>
         </div>
 
-        <p style="margin-top: 30px;">Por favor, revisa este incidente a la brevedad.</p>
+        <p style="margin-top: 30px;">Por favor, {verb} este incidente a la brevedad.</p>
 
         <p style="margin-top: 40px; font-size: 12px; color: #666;">
-            Tu dedicación y experiencia son el corazón de nuestra operación. ¡Gracias por ser un pilar fundamental de nuestro equipo!
+            {mensaje_equipo} el corazón de nuestra operación. {mensaje_final}
         </p>
     </div>
     </body>
     </html>
     """
     )
-    
+
     part = MIMEText(html, 'html')
     msg.attach(part)
-    
+
     try:
         with smtplib.SMTP_SSL(SMTP_SERVER, 465) as smtp:
             smtp.login(NOREPLY_EMAIL, NOREPLY_EMAIL_PASSWORD)
-            # Send the email
-            smtp.sendmail(NOREPLY_EMAIL, email, msg.as_string())
+            smtp.sendmail(NOREPLY_EMAIL, emails, msg.as_string())
         print("Email sent successfully!")
-        
+
     except Exception as e:
         print(f"Error sending email: {e}")
+
         
 def emailHumidity(humidity_obj: HistorialHumedad, tech: Technician, machine: Maquina):
     email = tech.email
@@ -405,15 +418,15 @@ def insert_machine_fail(
     db.commit()
     db.refresh(new_fallo)
     
-    tech = db.query(Technician).filter(Technician.machine == machine.id_maquina).first()
+    techList = db.query(Technician).filter(Technician.machine == machine.id_maquina).all()
     
-    if not tech:
+    if not techList:
         raise HTTPException(
             status_code=404,
             detail=f"El fallo se insertó pero no pudimos encontrar a ningun técnico responsable de la máquina"
         )
         
-    emailFailure(new_fallo, tech, machine)
+    emailFailure(new_fallo, techList, machine)
 
     return new_fallo
 
