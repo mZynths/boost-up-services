@@ -407,6 +407,8 @@ def put_order_new(
         )
     
     proteina_gr = db_cantidades.proteina_gr
+    densidad_proteica = db_proteina.densidad_proteica
+    proteina_gr *= densidad_proteica
     
     today = datetime.now(timezone('America/Mexico_City'))
     
