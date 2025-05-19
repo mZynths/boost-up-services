@@ -384,6 +384,7 @@ class FalloResponse(BaseModel):
     maquina: int
     tipo_fallo: int
     tipo_fallo_nombre: Optional[str]
+    tipo_fallo_descripcion: Optional[str]
     fec_hora: datetime
     descripcion: Optional[str] = None
 

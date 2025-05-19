@@ -525,6 +525,10 @@ class Fallo(Base):
     @property
     def tipo_fallo_nombre(self) -> str:
         return self.tipo_fallo_rel.nombre_fallo if self.tipo_fallo_rel else None
+    
+    @property
+    def tipo_fallo_descripcion(self) -> str:
+        return self.tipo_fallo_rel.descripcion if self.tipo_fallo_rel else None
 
 class HistorialHumedad(Base):
     __tablename__ = 'Historial_Humedad'
