@@ -13,6 +13,8 @@ from schemas import *
 
 from globalVariables import WEBHOOK_SECRET, stripe
 
+from user_routes import hasPermissionToConsume
+
 from database import get_db
 
 misc_router = APIRouter(tags=["miscellaneous"])
@@ -77,7 +79,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     return JSONResponse(content={"success": True})
 
 # Get detalles of pedido by id
-@misc_router.get("/pedido/{pedido_id}/", response_model = PedidoResponse)
+@misc_router.get("/pedido/{pedido_id}/")
 def get_detalles_pedido(pedido_id: str, db: Session = Depends(get_db)):
     db_compra: Compra = db.query(Compra).options(
         joinedload(Compra.pedido_rel).joinedload(Pedido.saborizante_rel).joinedload(Saborizante.sabor_rel),
@@ -101,22 +103,30 @@ def get_detalles_pedido(pedido_id: str, db: Session = Depends(get_db)):
     db_proteina: Proteina = db_pedido.proteina_rel
     db_curcuma: Curcuma = db_pedido.curcuma_rel
     db_saborizante: Saborizante = db_pedido.saborizante_rel
+    db_usuario = db.query(Usuario).filter(Usuario.email == db_pedido.usuario_email).first()
     
-    result = PedidoResponse(
-        proteina = db_proteina.nombre,
-        monto_total = db_compra.monto_total,
-        fec_hora_compra = db_compra.fec_hora_compra,
-        estado_canje = db_pedido.estado_canje,
-        proteina_gr = db_pedido.proteina_gr,
-        sabor = db_saborizante.sabor_rel.sabor,
-        tipo_saborizante = db_saborizante.tipo_saborizante_rel.tipo_saborizante,
-        proteina_marca = db_proteina.marca_rel.marca,
-        saborizante_marca = db_saborizante.marca_rel.marca
-    )
+    if not db_usuario:
+        raise HTTPException(
+            status_code = 404,
+            detail = "Usuario not found"
+        )
+    
+    result = {
+        "proteina": db_proteina.nombre,
+        "monto_total": db_compra.monto_total,
+        "fec_hora_compra": db_compra.fec_hora_compra,
+        "estado_canje": db_pedido.estado_canje,
+        "proteina_gr": db_pedido.proteina_gr,
+        "sabor": db_saborizante.sabor_rel.sabor,
+        "tipo_saborizante": db_saborizante.tipo_saborizante_rel.tipo_saborizante,
+        "proteina_marca": db_proteina.marca_rel.marca,
+        "saborizante_marca": db_saborizante.marca_rel.marca,
+        "es_consumible": hasPermissionToConsume(db_usuario, db)
+    }
     
     if db_curcuma:
-        result.curcuma_gr = db_pedido.curcuma_gr
-        result.curcuma_marca = db_curcuma.marca_rel.marca
+        result["curcuma_gr"] = db_pedido.curcuma_gr
+        result["curcuma_marca"] = db_curcuma.marca_rel.marca
         
     return result
 
