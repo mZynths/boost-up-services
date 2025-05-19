@@ -773,14 +773,136 @@ def check_machine_inventory(
 
     return response
 
+def insertHumidityAndEmail(maquina: Maquina, humedad: int, db: Session):
+    today = datetime.now(timezone('America/Mexico_City'))
+
+    db_humedad = HistorialHumedad(
+        maquina = maquina.id_maquina,
+        humedad = humedad,
+        fecha_hora = today,
+    )
+    
+    db.add(db_humedad)
+    db.commit()
+    db.refresh(db_humedad)
+    
+    if (humedad > MAX_ACCEPTABLE_HUMIDITY):
+        tech = db.query(Technician).filter(Technician.machine == Maquina.id_maquina).first()
+        
+        emailHumidity(db_humedad, tech, maquina)
+        
+        raise HTTPException(
+            status_code=403,
+            detail=f"La maquina {maquina.id_maquina} no paso prueba de humedad"
+        )
+
+def checkIfPedidoIsBought(order_id: str, db: Session):
+    compra = (
+        db.query(Compra)
+        .options(
+            joinedload(Compra.pedido_rel)
+        )
+        .filter(Compra.pedido_id == order_id)
+        .first()
+    )
+    
+    if not compra:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No se encontro pedido comprado con ID: {order_id}"
+        )
+        
+    return compra.pedido_rel
+
+def checkIfPedidoIsRedeemed(pedido: Pedido):
+    if pedido.estado_canje != "no_canjeado":
+        raise HTTPException(
+            status_code=403,
+            detail=f"El pedido {pedido.id_pedido} esta canjeado"
+        )
+
+def redeem(machine_id: int, pedido: Pedido, db: Session):
+    today = datetime.now(timezone('America/Mexico_City'))
+    
+    pedido.estado_canje = "canjeado"
+    pedido.fec_hora_canje = today
+    pedido.maquina_canje_id = machine_id
+    
+    db.commit()
+    db.refresh(pedido)
+
+def consumeInventories(pedido: Pedido, maquina: Maquina, db: Session):
+    invProteina = (
+        db.query(InvProteina)
+        .filter(
+            InvProteina.maquina == maquina.id_maquina,
+            InvProteina.proteina == pedido.proteina_id
+        )
+        .first()
+    )
+    
+    invSaborizante = (
+        db.query(InvSaborizante)
+        .filter(
+            InvSaborizante.maquina == maquina.id_maquina,
+            InvSaborizante.saborizante == pedido.saborizante_id,
+            
+        ).first()
+    )
+      
+    saborizante = db.query(Saborizante).filter(Saborizante.id_saborizante == pedido.saborizante_id).first()
+    
+    proteina_gr = pedido.proteina_gr
+    sabor_ml = saborizante.porcion
+    
+    try:
+        invCurcuma = (
+            db.query(InvCurcuma)
+            .filter(
+                InvCurcuma.maquina == maquina.id_maquina,
+                InvCurcuma.curcuma == pedido.curcuma_id
+            ).first()
+        )
+        curcuma_gr = pedido.curcuma_gr
+        invCurcuma.cantidad_gr -= curcuma_gr
+        
+        db.commit()
+        db.refresh(invCurcuma)
+    
+    except:
+        print("El pedido no tenia curcuma")
+    
+    
+    invProteina.cantidad_gr -= proteina_gr
+    invSaborizante.cantidad_ml -= sabor_ml
+    
+    db.commit()
+    db.refresh(invProteina)
+    db.refresh(invSaborizante)
+
+def checkUserInCooldown(user: Usuario, db: Session):
+    if not hasPermissionToConsume(user, db):
+        raise HTTPException(
+            status_code=403,
+            detail=f"El usuario {user.email} esta en cooldown"
+        )
+
+def checkInventoryPass(maquina: Maquina, pedido: Pedido, db: Session):
+    if not checkInventory(maquina, pedido, db):
+        raise HTTPException(
+            status_code=403,
+            detail=f"La maquina {maquina.id_maquina} no paso prueba de inventario"
+        )
+
 @machine_router.post(
     "/canjearPedido/",
-    summary="Determina canjeabilidad y ejecuta si aplica.",
-    response_model=PedidoResponse
+    summary="Determina canjeabilidad y ejecuta si aplica."
+    
 )
-def redeem(
+def redeem_endpoint(
     req: RedeemRequest,
     db: Session = Depends(get_db),
+    response_model = bool
 ):
     # Consigue la maquina
         maquina = db.query(Maquina).filter(Maquina.id_maquina == req.machine_id).first()
@@ -791,126 +913,33 @@ def redeem(
                 detail=f"No se encontro maquina con ID: {req.machine_id}"
             )
     
-    # Inserta tempranamente la humedad (para aprovechar la ocasion)
-        today = datetime.now(timezone('America/Mexico_City'))
-
-        db_humedad = HistorialHumedad(
-            maquina = req.machine_id,
-            humedad = req.current_humidity,
-            fecha_hora = today,
-        )
+    # Inserta la humedad y Revisa si la humedad recibida es aceptable (envia emails al tecnico si no)
+        insertHumidityAndEmail(maquina, req.current_humidity, db)
         
-        db.add(db_humedad)
-        db.commit()
-        db.refresh(db_humedad)
+    # Revisa si el pedido esta comprado y consigue su usuario
+        pedido = checkIfPedidoIsBought(req.order_id, db)
         
-    # Revisa si la humedad recibida es aceptable (envia emails al tecnico si no)       
-        if (req.current_humidity > MAX_ACCEPTABLE_HUMIDITY):
-            tech = db.query(Technician).filter(Technician.machine == req.machine_id).first()
-            
-            emailHumidity(db_humedad, tech, maquina)
-            
-            raise HTTPException(
-                status_code=403,
-                detail=f"La maquina {req.machine_id} no paso prueba de humedad"
-            )
-    
-    # Revisa si el pedido esta comprado
-        compra = (
-            db.query(Compra)
-            .options(
-                joinedload(Compra.pedido_rel)
-            )
-            .filter(Compra.pedido_id == req.order_id)
-            .first()
-        )
-        
-        if not compra:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No se encontro pedido comprado con ID: {req.order_id}"
-            )
-            
-        pedido = compra.pedido_rel
-        
-    # Revisa si el pedido esta no canjeado
-        if pedido.estado_canje != "no_canjeado":
-            raise HTTPException(
-                status_code=403,
-                detail=f"El pedido {req.order_id} esta canjeado"
-            )
-    
-    # Revisa si el usuario puede consumir
         user = db.query(Usuario).filter(Usuario.email == pedido.usuario_email).first()
-        
+    
         if not user:
             raise HTTPException(
                 status_code=404,
                 detail=f"No se encontro al usuario {pedido.usuario_email} responsable del pedido"
             )
+        
+    # Revisa si el pedido esta no canjeado
+        checkIfPedidoIsRedeemed(pedido)
     
-        if not hasPermissionToConsume(user, db):
-            raise HTTPException(
-                status_code=403,
-                detail=f"El usuario {pedido.usuario_email} esta en cooldown"
-            )
+    # Revisa si el usuario puede consumir   
+        checkUserInCooldown(user, db)
     
     # Revisa si la maquina puede preparar el pedido       
-        if not checkInventory(maquina, pedido, db):
-            raise HTTPException(
-                status_code=403,
-                detail=f"La maquina {req.machine_id} no paso prueba de inventario"
-            )
+        checkInventoryPass(maquina, pedido, db)
         
-    # Canjear pedido   
-        pedido.estado_canje = "canjeado"
-        pedido.fec_hora_canje = today
-        pedido.maquina_canje_id = req.machine_id
-        
-        db.commit()
-        db.refresh(pedido)
+    # Canjear pedido
+        redeem(req.machine_id, pedido, db)
         
     # Restar cantidad consumida a los inventarios
-        invProteina = (
-            db.query(InvProteina)
-            .filter(
-                InvProteina.maquina == maquina.id_maquina,
-                InvProteina.proteina == pedido.proteina_id
-            )
-            .first()
-        )
+        consumeInventories(pedido, maquina, db)
         
-        invSaborizante = (
-            db.query(InvSaborizante)
-            .filter(
-                InvSaborizante.maquina == maquina.id_maquina,
-                InvSaborizante.saborizante == pedido.saborizante_id,
-                
-            ).first()
-        )
-        
-        invCurcuma = (
-            db.query(InvCurcuma)
-            .filter(
-                InvCurcuma.maquina == maquina.id_maquina,
-                InvCurcuma.curcuma == pedido.curcuma_id
-            ).first()
-        )
-        
-        saborizante = db.query(Saborizante).filter(Saborizante.id_saborizante == pedido.saborizante_id).first()
-        
-        proteina_gr = pedido.proteina_gr
-        curcuma_gr = pedido.curcuma_gr
-        
-        sabor_ml = saborizante.porcion
-        
-        invProteina.cantidad_gr -= proteina_gr
-        invCurcuma.cantidad_gr -= curcuma_gr
-        invSaborizante.cantidad_ml -= sabor_ml
-        
-        db.commit()
-        db.refresh(invProteina)
-        db.refresh(invCurcuma)
-        db.refresh(invSaborizante)
-        
-        return pedido
+        return True
