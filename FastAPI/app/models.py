@@ -151,7 +151,7 @@ class Cantidades(Base):
 
     id_cantidades = Column(Integer, primary_key=True)
     proteina_gr = Column(TINYINT, nullable=False)
-    curcuma_gr = Column(TINYINT, nullable=False)
+    curcuma_gr = Column(Float, nullable=False)
 
 class Medidas(Base):
     __tablename__ = 'Medidas'
@@ -420,7 +420,7 @@ class Pedido(Base):
     
     fec_hora_canje = Column(DateTime, nullable=True)
     proteina_gr = Column(TINYINT, nullable=False)
-    curcuma_gr = Column(TINYINT, nullable=True)
+    curcuma_gr = Column(Float, nullable=True)
     
     saborizante_rel = relationship('Saborizante', foreign_keys=[saborizante_id])
     proteina_rel = relationship('Proteina', foreign_keys=[proteina_id])
@@ -449,7 +449,7 @@ class InvCurcuma(Base):
     id_inv_curcuma = Column(Integer, primary_key=True, autoincrement=True)
     curcuma = Column(Integer, ForeignKey("Curcuma.id_curcuma", onupdate="CASCADE"), nullable=False)
     maquina = Column(Integer, ForeignKey("Maquina.id_maquina", onupdate="CASCADE"), nullable=False)
-    cantidad_gr = Column(Integer, nullable=False)
+    cantidad_gr = Column(Float, nullable=False)
     fec_caducidad = Column(Date, nullable=False)
     fec_ult_abasto = Column(DateTime, nullable=False)
     fec_prev_abasto = Column(Date, nullable=True)
