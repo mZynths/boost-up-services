@@ -407,8 +407,8 @@ class PaymentMethodsResponse(BaseModel):
 class RedeemRequest(BaseModel):
     machine_id: int
     order_id: str
-    current_humidity: int
+    current_humidity: float
     
 class HumedadPost(BaseModel):
-    current_humidity: int
+    current_humidity: float
     machine_id: int
