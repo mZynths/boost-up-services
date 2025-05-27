@@ -408,3 +408,7 @@ class RedeemRequest(BaseModel):
     machine_id: int
     order_id: str
     current_humidity: int
+    
+class HumedadPost(BaseModel):
+    current_humidity: int
+    machine_id: int

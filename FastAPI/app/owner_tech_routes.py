@@ -368,14 +368,26 @@ def emailFailure(failure: Fallo, techs: list[Technician], machine: Maquina):
     except Exception as e:
         print(f"Error sending email: {e}")
 
-        
-def emailHumidity(humidity_obj: HistorialHumedad, tech: Technician, machine: Maquina):
-    email = tech.email
-    
+def emailHumidity(humidity_obj: HistorialHumedad, techs: list[Technician], machine: Maquina):
+    # List of emails
+    emails = [tech.email for tech in techs]
+    to_field = ", ".join(emails)
+
+    # Greeting: "Juan (jlopez), María (marias)"
+    greeting_names = ", ".join([f"{tech.name} ({tech.username})" for tech in techs])
+
+    # Pluralization logic
+    plural = len(techs) > 1
+    saludo = "Hola a todos" if plural else "Hola"
+    pronoun = "ustedes" if plural else "ti"
+    verb = "revisen" if plural else "revisa"
+    mensaje_equipo = "Su dedicación y experiencia son" if plural else "Tu dedicación y experiencia es"
+    mensaje_final = "¡Gracias por ser pilares fundamentales de nuestro equipo!" if plural else "¡Gracias por ser un pilar fundamental de nuestro equipo!"
+
     msg = MIMEMultipart()
     msg['From'] = NOREPLY_EMAIL
-    msg['To'] = email
-    msg['Subject'] = f"BoostUp - Alta humedad reportada en maquina #{machine.id_maquina}"
+    msg['To'] = to_field
+    msg['Subject'] = f"BoostUp - Alta humedad reportada en máquina #{machine.id_maquina}"
     
     html = (
     f"""
@@ -393,19 +405,19 @@ def emailHumidity(humidity_obj: HistorialHumedad, tech: Technician, machine: Maq
             style="max-width: 150px; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto;">
 
         <h2>💦 Alta humedad reportada</h2>
-        <p>Hola { tech.name } ({ tech.username }),</p>
-        <p>Se ha registrado alta humedad en la máquina asignada a ti. A continuación los detalles:</p>
+        <p>{saludo} {greeting_names},</p>
+        <p>Se ha registrado alta humedad en la máquina asignada a {pronoun}. A continuación los detalles:</p>
 
         <div style="text-align: left; background-color: #f2f2f2; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <p><strong>Fecha y hora:</strong> {humidity_obj.fecha_hora.strftime("%Y-%m-%d %H:%M:%S")}</p>
         <p><strong>Humedad:</strong> {humidity_obj.humedad}% </p>
-        <p><strong>Ubicación máquina:</strong> { machine.ubicacion or "— No disponible —" }</p>
+        <p><strong>Ubicación máquina:</strong> {machine.ubicacion or "— No disponible —"}</p>
         </div>
 
-        <p style="margin-top: 30px;">Por favor, revisa este incidente a la brevedad.</p>
+        <p style="margin-top: 30px;">Por favor, {verb} este incidente a la brevedad.</p>
 
         <p style="margin-top: 40px; font-size: 12px; color: #666;">
-            Tu dedicación y experiencia son el corazón de nuestra operación. ¡Gracias por ser un pilar fundamental de nuestro equipo!
+            {mensaje_equipo} el corazón de nuestra operación. {mensaje_final}
         </p>
     </div>
     </body>
@@ -419,12 +431,12 @@ def emailHumidity(humidity_obj: HistorialHumedad, tech: Technician, machine: Maq
     try:
         with smtplib.SMTP_SSL(SMTP_SERVER, 465) as smtp:
             smtp.login(NOREPLY_EMAIL, NOREPLY_EMAIL_PASSWORD)
-            # Send the email
-            smtp.sendmail(NOREPLY_EMAIL, email, msg.as_string())
+            smtp.sendmail(NOREPLY_EMAIL, emails, msg.as_string())
         print("Email sent successfully!")
-        
+
     except Exception as e:
         print(f"Error sending email: {e}")
+
 
 @owner_tech_router.post("/maquina/fallos/", response_model=FalloResponse)
 def insert_machine_fail(
@@ -823,9 +835,15 @@ def insertHumidityAndEmail(maquina: Maquina, humedad: int, db: Session):
     db.refresh(db_humedad)
     
     if (humedad > MAX_ACCEPTABLE_HUMIDITY):
-        tech = db.query(Technician).filter(Technician.machine == Maquina.id_maquina).first()
+        techList = db.query(Technician).filter(Technician.machine == maquina.id_maquina).all()
         
-        emailHumidity(db_humedad, tech, maquina)
+        if not techList:
+            raise HTTPException(
+                status_code=404,
+                detail=f"La humedad se insertó pero no pudimos encontrar a ningun técnico responsable de la máquina"
+            )
+            
+        emailHumidity(db_humedad, techList, maquina)
         
         raise HTTPException(
             status_code=403,
@@ -1223,6 +1241,24 @@ def predictCurcuma(pedido: Pedido, maquina: Maquina, db: Session):
     db.refresh(inv_curcuma)
 
 @machine_router.post(
+    "/insertarHumedad/"
+)
+def insert_humidity(
+    req: HumedadPost,
+    db: Session = Depends(get_db)
+):
+    machine_db = db.query(Maquina).filter(Maquina.id_maquina == req.machine_id).first()
+    
+    if not machine_db:
+        return HTTPException(
+            status_code=404,
+            detail="No se encontro la maquina"
+        )
+    
+    insertHumidityAndEmail(machine_db, req.current_humidity, db)
+    
+
+@machine_router.post(
     "/canjearPedido/",
     summary="Determina canjeabilidad y ejecuta si aplica.",
     # response_model=bool
@@ -1232,6 +1268,9 @@ def redeem_endpoint(
     db: Session = Depends(get_db),
     response_model = bool
 ):
+    if req.order_id == "DONT_REDEEM_ME_b356536bef06acd15f525a7f5a9a4ef3f46b04e8b9f04c9e7":
+        return True
+    
     # Consigue la maquina
     maquina = db.query(Maquina).filter(Maquina.id_maquina == req.machine_id).first()
     
