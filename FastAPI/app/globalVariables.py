@@ -38,6 +38,9 @@ def create_access_token_for_user(username: str, role: str, expires_delta: timede
     }
     return create_access_token(data, expires_delta)
 
+# Hardcoded values
+CURCUMA_PORTION = 85.575
+
 # Max restock variabbles
 PROTEIN_MAX_RESTOCK = 500
 SABORIZANTE_MAX_RESTOCK = 50
@@ -48,7 +51,7 @@ PROTEIN_EXTRA_MARGIN = 30
 TUMERIC_EXTRA_MARGIN = 5
 FLAVOR_EXTRA_MARGIN = 25
 
-REDEEM_COOLDOWN_HR = 12
+REDEEM_COOLDOWN_HR = 0
 
 MAX_ACCEPTABLE_HUMIDITY = 80
 

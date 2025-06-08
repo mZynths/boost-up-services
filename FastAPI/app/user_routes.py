@@ -185,7 +185,7 @@ def calculateCantidades(imc, edad, sexo, circ_brazo_cm, cintura_cm, cadera_cm, p
     
     return {
         'proteina_gr': proteinaPura,
-        'curcuma_gr': 0.5,
+        'curcuma_gr': CURCUMA_PORTION,
     }
 
 @usuario_router.delete("/deleteMe/", status_code=204)
