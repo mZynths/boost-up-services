@@ -22,7 +22,7 @@ pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 ALGORITHM = 'HS256'
 ACCESS_TOKEN_EXPIRE_MINUTES = 60*24 # Whole day
 
-RESET_TOKEN_EXPIRE_MINUTES = 1
+RESET_TOKEN_EXPIRE_MINUTES = 3
 
 def create_access_token(data: dict, expires_delta: timedelta):
     to_encode = data.copy()
@@ -52,6 +52,7 @@ TUMERIC_EXTRA_MARGIN = 5
 FLAVOR_EXTRA_MARGIN = 25
 
 REDEEM_COOLDOWN_HR = 0
+REDEEM_COOLDOWN_MINUTES = 5
 
 MAX_ACCEPTABLE_HUMIDITY = 80
 
