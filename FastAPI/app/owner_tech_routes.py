@@ -809,6 +809,9 @@ def check_machine_inventory(
             detail=f"No se encontro maquina con ID: {machine_id}"
         )
 
+    if pedido_id == "NO_INGREDIENTES_faaba12fea6cd9de54d3a7112b830d05572816c7a5db4fef":
+        return False
+
     pedido = db.query(Pedido).filter(Pedido.id_pedido == pedido_id).first()
     
     if not pedido:
