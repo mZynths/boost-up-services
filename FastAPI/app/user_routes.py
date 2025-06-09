@@ -761,7 +761,7 @@ def hasPermissionToConsume(
     fec_hora_canje = tz.localize(fec_hora_canje_naive)
 
     # Compare with current time
-    if now - fec_hora_canje >= timedelta(hours=REDEEM_COOLDOWN_HR):
+    if now - fec_hora_canje >= timedelta(minutes=REDEEM_COOLDOWN_MINUTES):
         return True
     else:
         return False
